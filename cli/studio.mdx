@@ -1,7 +1,7 @@
 ---
 title: "Studio Commands — NotebookLM CLI Reference"
 sidebarTitle: "Studio"
-description: "Generate AI content artifacts — podcasts, videos, reports, quizzes, mind maps, slides, and more — from your notebook sources."
+description: "Generate podcasts, videos, reports, quizzes, flashcards, mind maps, slides, infographics, and data tables from notebook sources using NotebookLM Studio."
 ---
 
 Studio commands turn your notebook sources into polished content artifacts using NotebookLM's AI generation pipeline. A single notebook can produce audio overviews, video summaries, written reports, interactive quizzes, flashcard decks, mind maps, slide presentations, infographics, and data tables — all from the same source material.
@@ -83,7 +83,7 @@ nlm video create <notebook-id> --format explainer --style classic --confirm
 |------|-------|---------|-------------|
 | `--format` | `-f` | `explainer` | Video style: `explainer`, `brief`, `cinematic` |
 | `--style` | `-s` | `auto_select` | Visual theme (see table below) |
-| `--style-prompt` | | | Custom style description (implies `--style custom` for explainer/brief) |
+| `--style-prompt` | | | Custom style description (implies `--style custom` for explainer/brief; maps to focus for cinematic) |
 | `--focus` | | | Focus topic or creative direction |
 | `--source-ids` | | | Comma-separated source IDs |
 | `--language` | | | BCP-47 language code |
@@ -307,13 +307,11 @@ nlm infographic create <notebook-id> --orientation portrait --style professional
 
 ## Data tables
 
-Generate a structured data table extracted from notebook sources.
+Generate a structured data table extracted from notebook sources. The description is a required positional argument that guides the AI in selecting and organising the right information.
 
 ```bash
 nlm data-table create <notebook-id> "Sales figures by region and quarter" --confirm
 ```
-
-The positional argument is a description of what data the table should contain. It guides the AI in selecting and organising the right information.
 
 **Flags**
 
@@ -330,7 +328,7 @@ The positional argument is a description of what data the table should contain. 
 
 ### `studio status`
 
-List all artifacts for a notebook and their current generation status.
+List all artifacts for a notebook and their current generation status. Mind map artifacts are included alongside other types.
 
 ```bash
 nlm studio status <notebook-id>
@@ -364,6 +362,14 @@ nlm studio delete <notebook-id> <artifact-id> --confirm
 | `--confirm` | `-y` | Skip confirmation prompt |
 | `--profile` | `-p` | Profile to use |
 
+### `studio rename`
+
+Rename an existing studio artifact.
+
+```bash
+nlm studio rename <artifact-id> "New Artifact Title"
+```
+
 ---
 
 ## Downloading artifacts
@@ -379,8 +385,8 @@ Once an artifact is ready, download it with `nlm download`. The artifact type de
 | Slide deck | `nlm download slide-deck` | `.pdf` (also `--format pptx`) |
 | Infographic | `nlm download infographic` | `.png` |
 | Data table | `nlm download data-table` | `.csv` |
-| Quiz | `nlm download quiz --format html\|markdown\|json` | varies |
-| Flashcards | `nlm download flashcards --format html\|markdown\|json` | varies |
+| Quiz | `nlm download quiz --format json\|markdown\|html` | varies |
+| Flashcards | `nlm download flashcards --format json\|markdown\|html` | varies |
 
 ```bash
 # Download audio

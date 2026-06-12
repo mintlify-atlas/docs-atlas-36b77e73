@@ -1,13 +1,13 @@
 ---
 title: "NotebookLM MCP Server: Overview & Quick Setup"
 sidebarTitle: "Overview"
-description: "Connect any MCP-compatible AI assistant to NotebookLM. The MCP server exposes 35 tools for notebooks, sources, research, studio content, and more."
+description: "Connect any MCP-compatible AI assistant to NotebookLM. The MCP server exposes 39 tools for notebooks, sources, research, studio content, and more."
 ---
 
 The NotebookLM MCP server is a standards-compliant [Model Context Protocol](https://modelcontextprotocol.io) server that gives any MCP-compatible AI assistant — Claude Code, Gemini CLI, Cursor, Windsurf, GitHub Copilot, and others — direct, programmatic access to Google NotebookLM. Once connected, your AI can create and manage notebooks, add sources from the web or Google Drive, run deep research, generate studio content (podcasts, videos, slide decks, and more), share notebooks, and handle dozens of other tasks — all through natural language, without you ever opening a browser.
 
 <Warning>
-  **Context window notice:** The MCP server registers **35 tools** with your AI assistant. Each tool consumes a small amount of context on every request. Disable the server when you are not actively using NotebookLM to preserve context budget. In Claude Code, type `@notebooklm-mcp` to toggle it on or off.
+  **Context window notice:** The MCP server registers **39 tools** with your AI assistant. Each tool consumes a small amount of context on every request. Disable the server when you are not actively using NotebookLM to preserve context budget. In Claude Code, type `@notebooklm-mcp` to toggle it on or off.
 </Warning>
 
 <Note>
@@ -137,19 +137,20 @@ Once connected, you interact with NotebookLM entirely through natural language. 
 
 ## Tool Categories
 
-The server exposes **35 tools** organized into the following categories. See the [Tools Reference](/mcp/tools-reference) for full parameter documentation and examples.
+The server exposes **39 tools** organized into the following categories. See the [Tools Reference](/mcp/tools-reference) for full parameter documentation and examples.
 
 | Category | Tools | What it covers |
 |---|---|---|
 | **Notebooks** | 6 | Create, list, get, describe, rename, delete |
-| **Sources** | 6 | Add (URL/text/file/Drive), list Drive, sync Drive, delete, describe, get content |
-| **Querying** | 2 | Ask AI about notebook sources, configure chat behavior |
+| **Sources** | 7 | Add (URL/text/file/Drive), list Drive, sync Drive, rename, delete, describe, get content |
+| **Querying** | 4 | Ask AI about notebook sources, async query start/status, configure chat behavior |
 | **Studio** | 4 | Create audio/video/reports/quizzes/flashcards/slides/infographics, check status, delete, revise |
 | **Downloads** | 1 | Download any artifact type to a local file |
 | **Exports** | 1 | Export artifacts to Google Docs or Sheets |
 | **Research** | 3 | Start web/Drive research, poll progress, import discovered sources |
 | **Notes** | 1 | Create, list, update, and delete notebook notes (unified tool) |
-| **Sharing** | 3 | Get sharing status, enable/disable public link, invite collaborators |
+| **Labels** | 1 | Auto-label and organize sources into thematic categories (unified tool) |
+| **Sharing** | 4 | Get sharing status, enable/disable public link, invite collaborator, batch invite |
 | **Auth** | 2 | Reload tokens from disk, save cookies manually (fallback) |
 | **Server** | 1 | Version info and auth status |
 | **Batch & Cross-Notebook** | 2 | Batch operations across multiple notebooks, aggregated cross-notebook queries |

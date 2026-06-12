@@ -1,10 +1,10 @@
 ---
 title: "Notebook Commands — NotebookLM CLI Reference"
 sidebarTitle: "Notebooks"
-description: "Create, list, query, and manage your NotebookLM notebooks from the terminal using the nlm notebook subcommands."
+description: "Create, list, rename, query, and delete NotebookLM notebooks from the terminal. Includes AI-powered describe and multi-turn query support."
 ---
 
-Notebooks are the top-level containers in NotebookLM — everything else (sources, studio artifacts, research tasks) lives inside one. The `nlm notebook` commands let you manage the full notebook lifecycle from creation through deletion, including an AI-powered `describe` command that summarizes what is inside a notebook and suggests follow-up topics.
+Notebooks are the top-level containers in NotebookLM — everything else (sources, studio artifacts, research tasks) lives inside one. The `nlm notebook` commands let you manage the full notebook lifecycle from creation through deletion, including an AI-powered `describe` command that summarises what is inside a notebook and suggests follow-up topics.
 
 The CLI supports two command styles that are fully equivalent — use whichever feels more natural in your workflow:
 
@@ -26,7 +26,7 @@ List all notebooks in your account.
 
 ```bash
 nlm notebook list
-nlm create notebook list   # verb-first alias
+nlm list notebooks   # verb-first alias
 ```
 
 **Flags**
@@ -91,7 +91,7 @@ nlm notebook get myproject          # alias resolves automatically
 
 ### `notebook describe`
 
-Ask the AI to summarise the notebook and suggest relevant topics to explore. This calls the NotebookLM AI layer — not a local operation — so it requires a valid session.
+Ask the AI to summarise the notebook and suggest relevant topics to explore. This calls the NotebookLM AI layer — not a local operation — so it requires a valid session. The response includes an AI-generated summary of all sources and a list of suggested follow-up questions.
 
 ```bash
 nlm notebook describe <notebook-id>
@@ -103,6 +103,10 @@ nlm notebook describe <notebook-id>
 |------|-------|-------------|
 | `--json` | `-j` | Output as JSON |
 | `--profile` | `-p` | Profile to use |
+
+<Note>
+`nlm notebook describe` produces an **AI-generated summary** of the notebook's sources and suggested topics — it does not just return raw metadata. `nlm notebook get` returns the raw notebook metadata (title, ID, source count) without AI processing.
+</Note>
 
 ---
 

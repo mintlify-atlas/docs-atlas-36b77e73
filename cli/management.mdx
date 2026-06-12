@@ -1,10 +1,10 @@
 ---
 title: "Management Commands — NotebookLM CLI Reference"
 sidebarTitle: "Management"
-description: "Configure the CLI, manage aliases, set chat behaviour, run diagnostics, and configure MCP server integrations."
+description: "Manage CLI config, create ID aliases, configure per-notebook chat behaviour, manage notes, run doctor diagnostics, and set up MCP integrations."
 ---
 
-The management commands cover everything outside of notebooks and content: persisted configuration settings, short-name aliases for long IDs, per-notebook chat configuration, note management, diagnostics, and MCP server setup for AI tool integrations.
+The management commands cover everything outside of notebooks and content: persisted configuration settings, short-name aliases for long IDs, per-notebook chat configuration, note management, diagnostics, artifact export, and MCP server setup for AI tool integrations.
 
 ---
 
@@ -128,10 +128,10 @@ Customise the AI chat behaviour for a specific notebook — choose the goal temp
 
 ```bash
 # Use defaults
-nlm chat configure <notebook-id> --goal default --length default
+nlm chat configure <notebook-id> --goal default --response-length default
 
 # Learning-focused, longer responses
-nlm chat configure <notebook-id> --goal learning_guide --length longer
+nlm chat configure <notebook-id> --goal learning_guide --response-length longer
 
 # Fully custom system prompt
 nlm chat configure <notebook-id> \
@@ -141,11 +141,12 @@ nlm chat configure <notebook-id> \
 
 **Flags**
 
-| Flag | Description |
-|------|-------------|
-| `--goal` | Chat goal template: `default`, `learning_guide`, `custom` |
-| `--length` | Response length preference: `default`, `longer` |
-| `--prompt` | Custom system prompt (required when `--goal custom`) |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--goal` | `-g` | Chat goal template: `default`, `learning_guide`, `custom` |
+| `--response-length` | `-r` | Response length preference: `default`, `longer`, `shorter` |
+| `--prompt` | | Custom system prompt (required when `--goal custom`, max 10,000 chars) |
+| `--profile` | `-p` | Profile to use |
 
 **Goal templates**
 
@@ -165,21 +166,88 @@ Notebooks support attached notes — short text snippets that are stored alongsi
 ```bash List Notes
 nlm note list <notebook-id>
 nlm note list <notebook-id> --json
+nlm note list <notebook-id> --quiet   # IDs only
 ```
 
 ```bash Create a Note
-nlm note create <notebook-id> "This is a quick observation about the Q3 data."
-nlm note create <notebook-id> "Key definitions" --title "Glossary"
+# --content is required, --title is optional (default: "New Note")
+nlm note create <notebook-id> --content "Quick observation about the Q3 data."
+nlm note create <notebook-id> --content "Key definitions" --title "Glossary"
 ```
 
 ```bash Update a Note
-nlm note update <note-id> "Updated content for the note."
+# Takes notebook-id and note-id as positional arguments
+nlm note update <notebook-id> <note-id> --content "Updated content for the note."
+nlm note update <notebook-id> <note-id> --title "New Title"
+nlm note update <notebook-id> <note-id> --content "New text" --title "New Title"
 ```
 
 ```bash Delete a Note
-nlm note delete <note-id> --confirm
+# Takes notebook-id and note-id as positional arguments
+nlm note delete <notebook-id> <note-id> --confirm
 ```
 </CodeGroup>
+
+**Note command flags**
+
+| Command | Flag | Short | Description |
+|---------|------|-------|-------------|
+| `note list` | `--json` | `-j` | Output as JSON |
+| `note list` | `--quiet` | `-q` | Output IDs only |
+| `note create` | `--content` | `-c` | Note content (required) |
+| `note create` | `--title` | `-t` | Note title (default: `New Note`) |
+| `note update` | `--content` | `-c` | New content |
+| `note update` | `--title` | `-t` | New title |
+| `note delete` | `--confirm` | `-y` | Skip confirmation prompt |
+
+<Warning>
+`nlm note delete` is **irreversible**. The note is permanently removed. Use `--confirm` to skip the interactive prompt in scripts.
+</Warning>
+
+---
+
+## Export
+
+Export studio artifacts to Google Docs or Google Sheets for further editing or sharing.
+
+### `export artifact`
+
+Export any studio artifact to Google Docs (reports, study guides, etc.) or Google Sheets (data tables).
+
+```bash
+# Export a report to Google Docs
+nlm export artifact <notebook-id> <artifact-id> --type docs
+
+# Export a data table to Google Sheets with a custom title
+nlm export artifact <notebook-id> <artifact-id> --type sheets --title "My Data Table"
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--type` | `-t` | Export destination: `docs` or `sheets` (required) |
+| `--title` | | Title for the exported document |
+| `--json` | `-j` | Output result as JSON |
+| `--profile` | `-p` | Profile to use |
+
+### `export to-docs`
+
+Shorthand for exporting a report artifact to Google Docs.
+
+```bash
+nlm export to-docs <notebook-id> <artifact-id>
+nlm export to-docs <notebook-id> <artifact-id> --title "Q3 Briefing"
+```
+
+### `export to-sheets`
+
+Shorthand for exporting a data table artifact to Google Sheets.
+
+```bash
+nlm export to-sheets <notebook-id> <artifact-id>
+nlm export to-sheets <notebook-id> <artifact-id> --title "Sales Data"
+```
 
 ---
 
@@ -244,5 +312,5 @@ nlm setup add json
 **Supported clients:** `claude-code`, `gemini`, `github-copilot`, `cursor`, `windsurf`, `cline`, `antigravity`, `codex`, `opencode`
 
 <Note>
-`nlm setup` configures the MCP server transport layer. To install skill / reference documentation for AI coding tools that do not use MCP, use `nlm skill install` instead. See the MCP overview page for a full walkthrough of both.
+`nlm setup` configures the MCP server transport layer. To install skill / reference documentation for AI coding tools that do not use MCP, use `nlm skill install` instead. See the [MCP overview](/mcp/overview) page for a full walkthrough of both.
 </Note>

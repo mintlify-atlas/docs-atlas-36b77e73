@@ -1,7 +1,7 @@
 ---
 title: "Research Commands — NotebookLM CLI Reference"
 sidebarTitle: "Research"
-description: "Discover and import sources automatically using NotebookLM's AI-powered web and Google Drive research tasks."
+description: "Start fast or deep research tasks to discover web and Google Drive sources, poll for progress, and import results into your notebook."
 ---
 
 The research commands let NotebookLM search the web or your Google Drive on your behalf, find sources relevant to a query, and import the results directly into a notebook. This is useful for building source libraries quickly without manually hunting for articles or documents.
@@ -15,7 +15,7 @@ The CLI supports two command styles:
 nlm research start "large language model safety" --notebook-id <id>
 
 # Verb-first
-nlm start research "large language model safety" --notebook-id <id>
+nlm research start "large language model safety" --notebook-id <id>
 ```
 
 ---
@@ -43,7 +43,7 @@ nlm research start "query" --notebook-id <notebook-id>
 | `--profile` | `-p` | | Profile to use |
 
 <Tip>
-Use `--auto-import` to run the entire research workflow in a single command. The CLI will start the task, wait for it to finish, and immediately import all discovered sources into the notebook — no separate `status` or `import` calls needed.
+Use `--auto-import` to run the entire research workflow in a single command. The CLI will start the task, wait for it to finish (up to 2 minutes for fast mode, 10 minutes for deep mode), and immediately import all discovered sources into the notebook — no separate `status` or `import` calls needed.
 </Tip>
 
 <CodeGroup>
@@ -120,7 +120,7 @@ nlm research status <notebook-id> --full
 
 ### `research import`
 
-Import the sources discovered by a completed research task into the notebook.
+Import the sources discovered by a completed research task into the notebook. If `TASK_ID` is omitted, the CLI auto-detects the most recent completed or in-progress task.
 
 ```bash
 nlm research import <notebook-id> <task-id>

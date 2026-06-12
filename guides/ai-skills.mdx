@@ -77,6 +77,13 @@ Run the appropriate install command for your AI tool. By default, skills are ins
     ```
     Alef Agent uses a different base path and requires tool-specific frontmatter (`type: tool`, `status: approved`). Installs into `~/.alef-agent/workspace/skills/nlm-skill/`.
   </Step>
+
+  <Step title="Hermes Agent">
+    ```bash
+    nlm skill install hermes
+    ```
+    Installs into `~/.hermes/skills/nlm-skill/` by default. Set the `HERMES_HOME` environment variable before installing if you keep your Hermes data in a non-default location — the skill will be placed at `$HERMES_HOME/skills/nlm-skill/` instead.
+  </Step>
 </Steps>
 
 ### Project-Level Install
@@ -175,6 +182,16 @@ nlm skill install agents --level project
 
     ```bash
     nlm skill install alef-agent
+    ```
+  </Card>
+
+  <Card title="Hermes Agent" icon="h">
+    **Install path (user):** `~/.hermes/skills/nlm-skill/` (or `$HERMES_HOME/skills/nlm-skill/` if `HERMES_HOME` is set)
+
+    **Install path (project):** `.hermes/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install hermes
     ```
   </Card>
 </CardGroup>

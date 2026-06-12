@@ -1,10 +1,10 @@
 ---
 title: "NotebookLM MCP Tools: Complete Reference Guide"
 sidebarTitle: "Tools"
-description: "Full reference for all 35 NotebookLM MCP tools — parameters, types, and example calls organized by category."
+description: "Full reference for all 39 NotebookLM MCP tools — parameters, types, and example calls organized by category."
 ---
 
-The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assistant can call on your behalf. This page documents every tool: what it does, the parameters it accepts, and a usage example. Tools are organized by category — use the accordions below to explore each group. For setup instructions, see the [MCP Overview](/mcp/overview).
+The NotebookLM MCP server registers **39 tools** that any MCP-compatible AI assistant can call on your behalf. This page documents every tool: what it does, the parameters it accepts, and a usage example. Tools are organized by category — use the accordions below to explore each group. For setup instructions, see the [MCP Overview](/mcp/overview).
 
 <Info>
   Several tools are **unified** — a single tool that handles multiple related operations via a `source_type`, `artifact_type`, or `action` parameter. Prefer these over chaining multiple single-purpose calls; they save context and reduce round-trips.
@@ -195,6 +195,26 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
   ```
 </Accordion>
 
+<Accordion title="source_rename — Rename a source">
+  Change the display title of an existing source in a notebook.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID containing the source.
+  </ParamField>
+
+  <ParamField body="source_id" type="string" required>
+    Source UUID to rename.
+  </ParamField>
+
+  <ParamField body="new_title" type="string" required>
+    New display title for the source.
+  </ParamField>
+
+  ```python
+  source_rename(notebook_id="abc123", source_id="src_uuid_1", new_title="Q3 Earnings Report")
+  ```
+</Accordion>
+
 <Accordion title="source_delete — Delete a source (irreversible)">
   Permanently delete one or more sources. This action **cannot be undone**.
 
@@ -305,6 +325,47 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
   ```python
   chat_configure(notebook_id="abc123", goal="learning_guide", response_length="longer")
   chat_configure(notebook_id="abc123", goal="custom", custom_prompt="Always respond in bullet points.")
+  ```
+</Accordion>
+
+<Accordion title="notebook_query_start — Start an async query">
+  Start a notebook query asynchronously. Use this instead of `notebook_query` when querying notebooks with many sources (50+) where the response may exceed 60 seconds. Returns immediately with a `query_id`. Poll `notebook_query_status` until the result is ready.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="query" type="string" required>
+    The question to ask.
+  </ParamField>
+
+  <ParamField body="source_ids" type="array">
+    Restrict the query to specific sources. Defaults to all sources.
+  </ParamField>
+
+  <ParamField body="conversation_id" type="string">
+    Pass the `conversation_id` from a previous response to ask follow-up questions in the same thread.
+  </ParamField>
+
+  <ParamField body="timeout" type="number" default="120.0">
+    Request timeout in seconds. Overrides `NOTEBOOKLM_QUERY_TIMEOUT` env var.
+  </ParamField>
+
+  ```python
+  result = notebook_query_start(notebook_id="abc123", query="Summarize all findings")
+  # result["query_id"] → poll with notebook_query_status
+  ```
+</Accordion>
+
+<Accordion title="notebook_query_status — Check async query result">
+  Check the status of an async query started with `notebook_query_start`. Poll every few seconds until `status` is `completed` or `error`.
+
+  <ParamField body="query_id" type="string" required>
+    The query ID returned by `notebook_query_start`.
+  </ParamField>
+
+  ```python
+  notebook_query_status(query_id="qry_abc123")
   ```
 </Accordion>
 
@@ -573,7 +634,7 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
 ## Exports
 
 <Accordion title="export_artifact — Export to Google Docs or Sheets">
-  Export a completed studio artifact to Google Docs or Google Sheets. Useful for reports, data tables, and other text-based artifacts.
+  Export a completed studio artifact to Google Docs or Google Sheets. Useful for reports, data tables, and other text-based artifacts. Returns the URL to the created Google Doc or Sheet.
 
   <ParamField body="notebook_id" type="string" required>
     Notebook UUID.
@@ -584,11 +645,19 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
   </ParamField>
 
   <ParamField body="export_type" type="string" required>
-    Destination format: `google_docs` or `google_sheets`.
+    Destination format: `docs` (Google Docs) or `sheets` (Google Sheets). Data tables export to `sheets`; reports export to `docs`.
+  </ParamField>
+
+  <ParamField body="title" type="string">
+    Optional title for the exported document.
   </ParamField>
 
   ```python
-  export_artifact(notebook_id="abc123", artifact_id="art_xyz", export_type="google_docs")
+  # Export a report to Google Docs
+  export_artifact(notebook_id="abc123", artifact_id="art_xyz", export_type="docs", title="My Report")
+
+  # Export a data table to Google Sheets
+  export_artifact(notebook_id="abc123", artifact_id="art_xyz", export_type="sheets")
   ```
 </Accordion>
 
@@ -788,6 +857,33 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
   ```
 </Accordion>
 
+<Accordion title="notebook_share_batch — Invite multiple collaborators">
+  Invite multiple collaborators to a notebook in a single request. Requires user confirmation before proceeding.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="recipients" type="array" required>
+    List of recipient objects, each with an `email` key (string) and an optional `role` key (`viewer` or `editor`, defaults to `viewer`).
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after explicit user approval.
+  </ParamField>
+
+  ```python
+  notebook_share_batch(
+      notebook_id="abc123",
+      recipients=[
+          {"email": "alice@example.com", "role": "editor"},
+          {"email": "bob@example.com", "role": "viewer"}
+      ],
+      confirm=True
+  )
+  ```
+</Accordion>
+
 ---
 
 ## Auth
@@ -972,6 +1068,83 @@ The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assi
   # Run research-and-report
   pipeline(action="run", notebook_id="abc123", pipeline_name="research-and-report", input_url="https://example.com")
   ```
+</Accordion>
+
+---
+
+## Labels
+
+<Accordion title="label — Source label management (unified)">
+  Organize sources in a notebook into thematic categories using AI-generated or manually managed labels. Requires at least 5 sources for auto-labeling. Sources can belong to multiple labels simultaneously.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="action" type="string" required>
+    Operation to perform: `auto`, `list`, `reorganize`, `create`, `rename`, `set_emoji`, `move_source`, or `delete`.
+  </ParamField>
+
+  <ParamField body="label_id" type="string">
+    Label UUID. Required for `rename`, `set_emoji`, `move_source`, and `delete`.
+  </ParamField>
+
+  <ParamField body="label_ids" type="array">
+    List of label UUIDs for batch delete. Alternative to `label_id` for `action=delete`.
+  </ParamField>
+
+  <ParamField body="name" type="string">
+    Label display name. Required for `create` and `rename`.
+  </ParamField>
+
+  <ParamField body="emoji" type="string">
+    Emoji character to set on a label (e.g. `"📊"`). Use `""` to clear. Required for `set_emoji`.
+  </ParamField>
+
+  <ParamField body="source_id" type="string">
+    Source UUID to assign to a label. Required for `move_source`.
+  </ParamField>
+
+  <ParamField body="unlabeled_only" type="boolean" default="false">
+    For `reorganize`: if `True`, only label sources not yet assigned to any label (no confirmation needed). If `False`, replaces all existing labels from scratch (requires `confirm=True`).
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Required for `delete` and for `reorganize` with `unlabeled_only=False`.
+  </ParamField>
+
+  ```python
+  # AI auto-label all sources
+  label(notebook_id="abc123", action="auto")
+
+  # List current labels
+  label(notebook_id="abc123", action="list")
+
+  # Re-categorize everything from scratch
+  label(notebook_id="abc123", action="reorganize", confirm=True)
+
+  # Only label sources not yet in any category
+  label(notebook_id="abc123", action="reorganize", unlabeled_only=True)
+
+  # Create a new label with an emoji
+  label(notebook_id="abc123", action="create", name="Research", emoji="📚")
+
+  # Rename a label
+  label(notebook_id="abc123", action="rename", label_id="lbl_xyz", name="Core Research")
+
+  # Set an emoji on a label
+  label(notebook_id="abc123", action="set_emoji", label_id="lbl_xyz", emoji="🎯")
+
+  # Assign a source to a label
+  label(notebook_id="abc123", action="move_source", label_id="lbl_xyz", source_id="src_abc")
+
+  # Delete a label (sources are preserved)
+  label(notebook_id="abc123", action="delete", label_id="lbl_xyz", confirm=True)
+  ```
+
+  <Warning>
+    `action=delete` permanently removes the label. Sources assigned to the label are **not** deleted — they remain in the notebook.
+  </Warning>
 </Accordion>
 
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Source Commands — NotebookLM CLI Reference"
 sidebarTitle: "Sources"
-description: "Add, list, describe, sync, and delete sources inside a NotebookLM notebook using the nlm source subcommands."
+description: "Add URLs, files, YouTube videos, and Google Drive docs to a NotebookLM notebook. Sync stale Drive sources and manage source content."
 ---
 
 Sources are the documents, URLs, videos, and text snippets that NotebookLM reads when answering questions or generating studio content. The `nlm source` commands let you manage every aspect of a notebook's source library — from adding a PDF file to syncing stale Google Drive documents — directly from the terminal.
@@ -44,7 +44,7 @@ nlm source add <notebook-id> --url "https://example.com/article"
 |------|-------|-------------|
 | `--wait` | `-w` | Poll until the source finishes processing |
 | `--wait-timeout` | | Max seconds to wait when `--wait` is set (default 600) |
-| `--title` | | Custom title for the source |
+| `--title` | | Custom title for the source (required for text sources) |
 | `--type` | | Drive doc type: `doc`, `slides`, `sheets`, `pdf` (default `doc`) |
 | `--profile` | `-p` | Profile to use |
 
@@ -135,6 +135,10 @@ Retrieve the full text content of a source as processed by NotebookLM.
 nlm source get <source-id>
 ```
 
+<Note>
+`nlm source get` returns the **raw text content** of the source as indexed by NotebookLM. To get an AI-generated summary with keywords instead, use `nlm source describe`.
+</Note>
+
 **Flags**
 
 | Flag | Short | Description |
@@ -152,11 +156,51 @@ Ask the AI to generate a summary and extract keywords for a source. This is usef
 nlm source describe <source-id>
 ```
 
+<Note>
+`nlm source describe` produces an **AI-generated summary with keywords** — it calls the NotebookLM AI layer. `nlm source get` returns the raw indexed text content without AI processing.
+</Note>
+
 **Flags**
 
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source content`
+
+Get the raw content of a source without any AI processing. Optionally write it directly to a file.
+
+```bash
+nlm source content <source-id>
+nlm source content <source-id> --output raw-text.txt
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--output` | `-o` | Write content to a file instead of stdout |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source rename`
+
+Rename a source within a notebook.
+
+```bash
+nlm source rename <source-id> "New Title" --notebook <notebook-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebook` | `-n` | Notebook ID containing the source (required) |
 | `--profile` | `-p` | Profile to use |
 
 ---

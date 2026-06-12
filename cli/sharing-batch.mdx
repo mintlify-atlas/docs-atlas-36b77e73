@@ -1,7 +1,7 @@
 ---
 title: "Sharing, Batch, Pipelines & Tags — CLI Reference"
 sidebarTitle: "Sharing & Batch"
-description: "Share notebooks, run batch and cross-notebook queries, automate multi-step pipelines, and organise notebooks with tags."
+description: "Share notebooks, run batch operations across multiple notebooks, execute cross-notebook queries, automate pipelines, and organise with tags."
 ---
 
 This page covers four groups of power-user commands: sharing notebooks with collaborators, batch operations across many notebooks at once, cross-notebook queries that synthesise answers from multiple notebooks, and pipeline automation for multi-step workflows. It also documents the tag system that lets you group notebooks and target them by label rather than by ID.
@@ -70,6 +70,24 @@ nlm share invite <notebook-id> colleague@example.com --role editor
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--role` | `-r` | `viewer` | Role to assign: `viewer` or `editor` |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+### `share batch`
+
+Invite multiple collaborators to a notebook in a single command using a comma-separated list of email addresses.
+
+```bash
+nlm share batch <notebook-id> "alice@example.com,bob@example.com" --role viewer
+nlm share batch <notebook-id> "editor1@co.com,editor2@co.com" --role editor
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--role` | `-r` | `viewer` | Role for all invited users: `viewer` or `editor` |
 | `--profile` | `-p` | | Profile to use |
 
 ---
@@ -166,7 +184,7 @@ nlm batch delete --tags "archived-2024" --confirm
 
 ### `batch studio`
 
-Trigger studio artifact generation across multiple notebooks simultaneously.
+Trigger studio artifact generation across multiple notebooks simultaneously. The artifact type is a positional argument.
 
 ```bash
 # Generate audio overviews for all notebooks tagged "research"
@@ -208,7 +226,7 @@ nlm cross query "Summarize everything" --all
 | `--all` | `-a` | Query every notebook in the account |
 
 <Note>
-`nlm cross query` synthesises answers from each notebook independently and shows per-notebook results. `nlm batch query` does the same but formats output as a result table rather than rich panels. Use `cross` when you want comparative reading, `batch` when scripting.
+`nlm cross query` synthesises answers from each notebook independently and shows per-notebook results in rich panels. `nlm batch query` does the same but formats output as a result table rather than rich panels. Use `cross` when you want comparative reading, `batch` when scripting.
 </Note>
 
 ---
@@ -291,7 +309,7 @@ Tags let you group notebooks by topic or project so you can target them in batch
 
 ### `tag add`
 
-Add one or more tags to a notebook. Tags are stored locally.
+Add one or more tags to a notebook. Tags are stored locally. Use `--title` to store a human-readable display name alongside the tags.
 
 ```bash
 nlm tag add <notebook-id> --tags "ai,research,llm"
@@ -332,7 +350,7 @@ nlm tag list
 
 ### `tag select`
 
-Find notebooks whose tags match a natural-language query. Useful for discovering which notebooks are relevant before running a cross-notebook or batch command.
+Find notebooks whose tags match a natural-language query and return their notebook IDs. Useful for discovering which notebooks are relevant before running a cross-notebook or batch command.
 
 ```bash
 nlm tag select "ai research"

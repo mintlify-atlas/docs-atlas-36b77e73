@@ -55,6 +55,8 @@ All server options can be set via environment variables. These are read at start
 | `NOTEBOOKLM_BASE_URL` | Override the NotebookLM base URL for enterprise or workspace deployments | `https://notebooklm.google.com` |
 | `NOTEBOOKLM_BL` | Build label override. Usually auto-extracted from the NotebookLM page — only set this if auto-extraction fails. | _(auto)_ |
 | `NOTEBOOKLM_ALLOW_EXTERNAL_BIND` | Allow binding HTTP/SSE to non-loopback addresses. Set to `1` to enable (security risk). | _(unset)_ |
+| `NOTEBOOKLM_CONVERSATION_MAX_TURNS` | Maximum number of turns to keep in the in-process conversation history cache. | _(unbounded)_ |
+| `NOTEBOOKLM_CONVERSATION_MAX_CONVS` | Maximum number of concurrent conversations to keep in the in-process cache. | _(unbounded)_ |
 
 <Info>
   Setting `NOTEBOOKLM_HL` changes both the NotebookLM UI language and the default language used for studio artifacts (audio, video, reports, etc.). You can override the language per-artifact with the `language` parameter on `studio_create`.
@@ -246,7 +248,7 @@ If you prefer to configure your AI tool by editing JSON files directly (instead 
 
 ## Context Window Management
 
-The MCP server exposes **35 tools**. Each tool registration consumes a small but non-trivial amount of your AI assistant's context budget, and this cost is paid on every request whether or not you use NotebookLM in that session.
+The MCP server exposes **39 tools**. Each tool registration consumes a small but non-trivial amount of your AI assistant's context budget, and this cost is paid on every request whether or not you use NotebookLM in that session.
 
 **Best practices:**
 
