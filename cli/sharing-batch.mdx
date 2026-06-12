@@ -1,0 +1,355 @@
+---
+title: "Sharing, Batch, Pipelines & Tags — CLI Reference"
+sidebarTitle: "Sharing & Batch"
+description: "Share notebooks, run batch and cross-notebook queries, automate multi-step pipelines, and organise notebooks with tags."
+---
+
+This page covers four groups of power-user commands: sharing notebooks with collaborators, batch operations across many notebooks at once, cross-notebook queries that synthesise answers from multiple notebooks, and pipeline automation for multi-step workflows. It also documents the tag system that lets you group notebooks and target them by label rather than by ID.
+
+---
+
+## Sharing
+
+Control who can access a notebook — enable public links, invite collaborators, and inspect current sharing settings.
+
+### `share status`
+
+Show the current sharing configuration and collaborator list for a notebook.
+
+```bash
+nlm share status <notebook-id>
+nlm share status myproject           # alias works
+nlm share status <notebook-id> --json
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `share public`
+
+Generate a public share link so anyone with the link can view the notebook.
+
+```bash
+nlm share public <notebook-id>
+# → ✓ Public access enabled
+# → Link: https://notebooklm.google.com/notebook/...
+```
+
+---
+
+### `share private`
+
+Remove the public share link. Access is restricted to named collaborators only.
+
+```bash
+nlm share private <notebook-id>
+```
+
+---
+
+### `share invite`
+
+Invite a collaborator by email address. The invited user will receive a notification and can access the notebook according to their assigned role.
+
+```bash
+# Invite as viewer (default)
+nlm share invite <notebook-id> colleague@example.com
+
+# Invite as editor
+nlm share invite <notebook-id> colleague@example.com --role editor
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--role` | `-r` | `viewer` | Role to assign: `viewer` or `editor` |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+## Batch operations
+
+Batch commands run the same operation across multiple notebooks simultaneously, identified by explicit IDs, tag, or `--all`.
+
+### `batch query`
+
+Ask a question to multiple notebooks and get a result table showing each notebook's answer.
+
+```bash
+# Query specific notebooks
+nlm batch query "What are the key findings?" --notebooks "id1,id2,id3"
+
+# Query notebooks by tag
+nlm batch query "Summarize the main points" --tags "ai,research"
+
+# Query every notebook in your account
+nlm batch query "What is this about?" --all
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebooks` | `-n` | Comma-separated notebook IDs or names |
+| `--tags` | `-t` | Comma-separated tags to select notebooks |
+| `--all` | `-a` | Query every notebook in the account |
+
+---
+
+### `batch add-source`
+
+Add the same URL source to multiple notebooks at once.
+
+```bash
+# Add to specific notebooks
+nlm batch add-source "https://example.com/paper.pdf" --notebooks "id1,id2"
+
+# Add to notebooks with a specific tag
+nlm batch add-source "https://example.com/update.html" --tags "active-projects"
+
+# Add to all notebooks
+nlm batch add-source "https://company.com/new-policy.pdf" --all
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebooks` | `-n` | Comma-separated notebook IDs or names |
+| `--tags` | `-t` | Comma-separated tags to select notebooks |
+| `--all` | `-a` | Add to every notebook in the account |
+
+---
+
+### `batch create`
+
+Create multiple notebooks in a single command by providing a comma-separated list of titles.
+
+```bash
+nlm batch create "Project Alpha, Project Beta, Project Gamma"
+```
+
+---
+
+### `batch delete`
+
+Delete multiple notebooks at once.
+
+<Warning>
+Batch deletion is **irreversible**. All sources, artifacts, and research tasks in every targeted notebook are permanently destroyed. Always use `--confirm` in scripts.
+</Warning>
+
+```bash
+# Delete specific notebooks
+nlm batch delete --notebooks "id1,id2" --confirm
+
+# Delete notebooks by tag
+nlm batch delete --tags "archived-2024" --confirm
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebooks` | `-n` | Comma-separated notebook IDs or names |
+| `--tags` | `-t` | Comma-separated tags to select notebooks |
+| `--confirm` | `-y` | Skip the confirmation prompt |
+
+---
+
+### `batch studio`
+
+Trigger studio artifact generation across multiple notebooks simultaneously.
+
+```bash
+# Generate audio overviews for all notebooks tagged "research"
+nlm batch studio audio --tags "research"
+
+# Generate reports for specific notebooks
+nlm batch studio report --notebooks "id1,id2,id3"
+
+# Generate flashcards for all notebooks
+nlm batch studio flashcards --all
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebooks` | `-n` | Comma-separated notebook IDs or names |
+| `--tags` | `-t` | Comma-separated tags to select notebooks |
+| `--all` | `-a` | Generate for every notebook in the account |
+
+---
+
+## Cross-notebook query
+
+Cross-notebook queries send the same question to multiple notebooks and display each answer in a panel — letting you see how different knowledge bases respond to the same prompt side by side.
+
+```bash
+nlm cross query "What are the main risks identified?" --notebooks "id1,id2"
+nlm cross query "Compare the methodologies" --tags "ai,research"
+nlm cross query "Summarize everything" --all
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebooks` | `-n` | Comma-separated notebook IDs or names |
+| `--tags` | `-t` | Comma-separated tags to select notebooks |
+| `--all` | `-a` | Query every notebook in the account |
+
+<Note>
+`nlm cross query` synthesises answers from each notebook independently and shows per-notebook results. `nlm batch query` does the same but formats output as a result table rather than rich panels. Use `cross` when you want comparative reading, `batch` when scripting.
+</Note>
+
+---
+
+## Pipelines
+
+Pipelines compose multiple CLI operations into a named, reusable workflow. Run a built-in pipeline or define your own in YAML.
+
+### `pipeline list`
+
+List all available pipelines — both built-in and user-defined.
+
+```bash
+nlm pipeline list
+```
+
+**Built-in pipelines**
+
+| Name | Description |
+|------|-------------|
+| `ingest-and-podcast` | Add a URL source and generate an audio overview |
+| `research-and-report` | Run web research and generate a Briefing Doc report |
+| `multi-format` | Generate audio overview, report, and flashcards from existing sources |
+
+### `pipeline run`
+
+Execute a pipeline on a notebook. Use `--input-url` to pass a URL into pipelines that accept one.
+
+```bash
+# Add a URL and immediately generate a podcast
+nlm pipeline run ingest-and-podcast \
+  --notebook <notebook-id> \
+  --input-url "https://arxiv.org/abs/2501.00001"
+
+# Run web research and generate a report
+nlm pipeline run research-and-report \
+  --notebook <notebook-id> \
+  --input-url "https://example.com/reference"
+
+# Generate audio + report + flashcards from existing sources
+nlm pipeline run multi-format --notebook <notebook-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--notebook` | `-n` | Target notebook ID (required) |
+| `--input-url` | `-u` | URL variable (`$INPUT_URL`) passed to pipeline steps |
+
+### Custom pipelines
+
+Create your own pipelines as YAML files and place them in `~/.notebooklm-mcp-cli/pipelines/`. They become available immediately in `nlm pipeline list`.
+
+```bash
+nlm pipeline create my-workflow \
+  --description "Add source and create report" \
+  --file my-workflow.yaml
+```
+
+Example YAML structure:
+
+```yaml
+description: "Add a URL source then create a Briefing Doc report"
+steps:
+  - action: source_add
+    params:
+      type: url
+      url: "$INPUT_URL"
+  - action: report_create
+    params:
+      format: "Briefing Doc"
+```
+
+---
+
+## Tags & smart select
+
+Tags let you group notebooks by topic or project so you can target them in batch, cross-notebook, and pipeline commands without listing individual IDs.
+
+### `tag add`
+
+Add one or more tags to a notebook. Tags are stored locally.
+
+```bash
+nlm tag add <notebook-id> --tags "ai,research,llm"
+
+# Optionally store a display title alongside the tags
+nlm tag add <notebook-id> --tags "active" --title "My Research Notebook"
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--tags` | `-t` | Comma-separated tags (required) |
+| `--title` | | Display title for the notebook entry |
+
+### `tag remove`
+
+Remove one or more tags from a notebook.
+
+```bash
+nlm tag remove <notebook-id> --tags "ai"
+nlm tag remove <notebook-id> --tags "ai,research"
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--tags` | `-t` | Comma-separated tags to remove (required) |
+
+### `tag list`
+
+Show all tagged notebooks with their current tag sets.
+
+```bash
+nlm tag list
+```
+
+### `tag select`
+
+Find notebooks whose tags match a natural-language query. Useful for discovering which notebooks are relevant before running a cross-notebook or batch command.
+
+```bash
+nlm tag select "ai research"
+nlm tag select "marketing campaigns 2024"
+```
+
+**Using tags in other commands**
+
+Once notebooks are tagged, you can reference them by tag in any command that supports `--tags`:
+
+```bash
+# Batch query all notebooks tagged "research"
+nlm batch query "What are the key insights?" --tags "research"
+
+# Generate podcasts for notebooks tagged "ai" or "llm"
+nlm batch studio audio --tags "ai,llm"
+
+# Cross-notebook query on tagged notebooks
+nlm cross query "Compare the methodologies" --tags "research,papers"
+```

@@ -1,0 +1,304 @@
+---
+title: "Troubleshooting the NotebookLM CLI and MCP Server"
+sidebarTitle: "Troubleshooting"
+description: "Diagnose and fix authentication failures, installation issues, rate limits, API instability, and other common problems with the nlm CLI and MCP server."
+---
+
+Because the NotebookLM CLI and MCP server rely on undocumented internal APIs and browser-extracted cookies, a handful of failure modes come up regularly. Most are quick to resolve once you know the cause. This guide covers every common issue, organized by category, with the exact steps to fix each one. When in doubt, start with `nlm doctor` — it checks authentication, installation, browser availability, and AI tool configuration in one pass.
+
+---
+
+## Authentication Issues
+
+<AccordionGroup>
+  <Accordion title="Browser is running but without remote debugging enabled">
+    **Symptom:** `nlm login` hangs or reports that no debug port is available, even though a Chrome window is open.
+
+    **Cause:** You already have a Chrome session running that was not launched with the `--remote-debugging-port` flag. `nlm login` needs to start a fresh Chrome instance with that flag enabled.
+
+    **Fix:** Close Chrome completely — including any windows minimized to the system tray or taskbar. On macOS/Linux you can force-quit with:
+
+    ```bash
+    pkill -f "Chrome\|Brave\|Arc\|Edge"
+    ```
+
+    Wait a moment, then retry `nlm login`.
+  </Accordion>
+
+  <Accordion title="401 Unauthorized or 403 Forbidden">
+    **Symptom:** API calls fail with `401 Unauthorized` or `403 Forbidden`.
+
+    **Cause:** Your stored cookies have expired (typically after 2–4 weeks) or the session was revoked.
+
+    **Fix:** Re-run authentication to extract fresh cookies:
+
+    ```bash
+    nlm login
+    ```
+
+    Once the browser session completes, retry your original command.
+  </Accordion>
+
+  <Accordion title="Authentication loop — re-login does not help">
+    **Symptom:** `nlm login` completes successfully, but commands continue to fail with authentication errors or immediately prompt you to log in again.
+
+    **Cause:** A `NOTEBOOKLM_COOKIES` environment variable is set in your shell or in the MCP server's environment configuration. This variable overrides everything — including freshly extracted cookies stored on disk.
+
+    <Warning>
+      `NOTEBOOKLM_COOKIES` takes absolute precedence over all other authentication methods. If this variable is set and its value is stale, every request will fail regardless of how many times you run `nlm login`.
+    </Warning>
+
+    **Check for the variable in your shell:**
+
+    ```bash
+    echo $NOTEBOOKLM_COOKIES
+    ```
+
+    **Remove it from your MCP server config.** Open your AI tool's MCP configuration and delete the `NOTEBOOKLM_COOKIES` entry from the `env` block. For example, in a JSON-based MCP config:
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "notebooklm-mcp",
+          "env": {
+            // Remove this line:
+            // "NOTEBOOKLM_COOKIES": "SID=...; ..."
+          }
+        }
+      }
+    }
+    ```
+
+    After removing the variable, restart your AI tool and retry.
+  </Accordion>
+
+  <Accordion title="Cookie file shows missing required cookies">
+    **Symptom:** Manual cookie import fails with a message like `Missing required cookies: SID, HSID`.
+
+    **Cause:** When copying cookies manually from Chrome DevTools, it is easy to accidentally copy the cookie *name* column instead of the *value* column, or to copy a truncated value.
+
+    **Fix:** In Chrome DevTools → Application → Cookies → `notebooklm.google.com`, right-click each required cookie and copy the full value string (not the name). The cookies `nlm` needs include `SID`, `HSID`, `SSID`, `APISID`, `SAPISID`, and `__Secure-*` variants.
+
+    Alternatively, use `nlm login` in auto mode — it extracts all cookies correctly without manual copying.
+  </Accordion>
+
+  <Accordion title="auth_status: stale vs auth_status: unverified">
+    **Symptom:** `nlm login --check` or `nlm doctor` reports `auth_status: stale` or `auth_status: unverified`.
+
+    **Difference:**
+    - `unverified` — Cookies exist on disk but have not been validated against the NotebookLM API yet in this session. This often resolves itself on the next API call.
+    - `stale` — Cookies were tested against the API and rejected. The session has expired.
+
+    **Action for `unverified`:** Run any `nlm` command that makes an API call (e.g., `nlm notebook list`). If it succeeds, authentication is fine.
+
+    **Action for `stale`:** Re-authenticate:
+
+    ```bash
+    nlm login
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Installation Issues
+
+<AccordionGroup>
+  <Accordion title="uv tool upgrade is not installing the latest version">
+    **Symptom:** Running `uv tool upgrade notebooklm-mcp-cli` installs an older version instead of the latest release from PyPI.
+
+    **Cause:** `uv tool upgrade` respects version constraints from your original installation. If you initially installed with a version pin or an older constraint, `upgrade` stays within those bounds by design.
+
+    **Fix — force a clean reinstall:**
+
+    ```bash
+    uv tool install --force notebooklm-mcp-cli
+    ```
+
+    This bypasses any cached constraints and always installs the latest version from PyPI.
+
+    **Verify:**
+
+    ```bash
+    uv tool list | grep notebooklm
+    ```
+  </Accordion>
+
+  <Accordion title="Broken symlinks after uninstalling legacy packages">
+    **Symptom:** After uninstalling `notebooklm-cli` or `notebooklm-mcp-server` (the old separate packages), the `nlm` or `notebooklm-mcp` commands produce errors or point to the wrong binaries.
+
+    **Cause:** When multiple packages previously provided the same executable, `uv` can leave broken symlinks after one is removed.
+
+    **Fix:**
+
+    ```bash
+    # Remove any remaining legacy packages
+    uv tool uninstall notebooklm-cli 2>/dev/null || true
+    uv tool uninstall notebooklm-mcp-server 2>/dev/null || true
+
+    # Force reinstall the unified package to repair symlinks
+    uv tool install --force notebooklm-mcp-cli
+    ```
+
+    **Verify both binaries are present:**
+
+    ```bash
+    which nlm
+    which notebooklm-mcp
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## API and Rate Limits
+
+<AccordionGroup>
+  <Accordion title="Rate limit errors mid-session">
+    **Symptom:** Commands start failing with rate limit errors after a period of heavy use.
+
+    **Cause:** The free tier of NotebookLM enforces approximately **50 queries per day** (not officially documented). Studio content generation may have separate limits.
+
+    **Mitigation:**
+    - Space out operations: add `sleep 2` between source additions, `sleep 5` between generation commands.
+    - Use batch import commands (`nlm research import`, `nlm source sync`) instead of adding sources one by one.
+    - Wait until the daily limit resets (typically midnight Pacific time) before retrying.
+
+    ```bash
+    # Throttled source ingestion example
+    nlm source add $NOTEBOOK --url "$URL1" && sleep 2
+    nlm source add $NOTEBOOK --url "$URL2" && sleep 2
+    nlm source add $NOTEBOOK --url "$URL3" && sleep 2
+    ```
+  </Accordion>
+
+  <Accordion title="API instability — unexpected errors or None results">
+    **Symptom:** Operations that worked yesterday now return parsing errors, `None` results, or unexpected response shapes.
+
+    **Cause:** The CLI uses undocumented internal Google APIs. Google can and does change RPC IDs, request structures, and response formats without notice.
+
+    **What typically breaks:**
+    - RPC method IDs (e.g., `wXbhsf` for list notebooks) may be renamed.
+    - Request or response field names may change.
+    - New required parameters may be added silently.
+
+    **What to do:**
+    1. Check the [GitHub Issues page](https://github.com/jacob-bd/notebooklm-cli/issues) — someone else may have already reported and fixed it.
+    2. If the issue is widespread, wait for a patch release.
+    3. If you can identify the new API shape via Chrome DevTools, submit a PR or open an issue with your findings.
+    4. Include the current date in any bug report — this helps correlate the breakage with Google deployment timelines.
+  </Accordion>
+
+  <Accordion title="Build label (bl) parameter errors">
+    **Symptom:** Errors mentioning `bl`, `build label`, or `boq_labs-tailwind-frontend_...` in the request or response.
+
+    **Cause:** The `bl` (build label) parameter is a frontend version identifier required by NotebookLM's batchexecute API.
+
+    **Current status (v0.3.11+):** This is resolved. The `bl` value is now auto-extracted from the NotebookLM page during `nlm login` and refreshed automatically. No manual intervention is needed under normal conditions.
+
+    **Manual override (if auto-extraction fails):**
+
+    ```bash
+    export NOTEBOOKLM_BL="boq_labs-tailwind-frontend_YYYYMMDD.XX_pN"
+    ```
+
+    The priority order is: `NOTEBOOKLM_BL` environment variable → auto-extracted → hardcoded fallback.
+  </Accordion>
+
+  <Accordion title="CSRF token extraction failure">
+    **Symptom:** Error message: `ValueError: Could not extract CSRF token from page`. A file named `debug_page.html` appears in `~/.notebooklm-mcp-cli/`.
+
+    **Cause:** The CSRF token (`SNlM0e`) and session ID (`FdrFJe`) are auto-extracted from the NotebookLM homepage on first use. If the homepage structure changes, or if the page is not fully loaded (network issues, redirects), extraction fails.
+
+    **Debug steps:**
+    1. Open `~/.notebooklm-mcp-cli/debug_page.html` in a browser to see what the server actually returned.
+    2. Check if you are being redirected to a Google login page — if so, your cookies have expired.
+
+    **Manual fallback:** If the page loads correctly but extraction still fails, you can pass tokens explicitly:
+
+    1. Open Chrome DevTools on `notebooklm.google.com`.
+    2. Go to the Network tab and find any POST request to `batchexecute`.
+    3. Copy the `SNlM0e` and `FdrFJe` parameter values from the request payload.
+    4. Pass them via the MCP `save_auth_tokens` tool or set them in your environment.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Known Limitations
+
+<AccordionGroup>
+  <Accordion title="Free tier query limit">
+    The free tier of NotebookLM allows approximately **50 queries or operations per day**. This limit is not officially documented and may vary. Heavy use of research, studio generation, and chat queries counts against this limit. Consider spacing out operations and using batch commands to stay within the limit.
+  </Accordion>
+
+  <Accordion title="Cookie expiration">
+    Authentication cookies typically expire after **2–4 weeks**. When they expire, all API calls will return authentication errors. Re-run `nlm login` to extract fresh cookies. The CLI attempts automatic headless re-authentication if you have a saved browser profile, but this may not always succeed if your Google session has fully expired.
+  </Accordion>
+
+  <Accordion title="API may change without notice">
+    All API access uses undocumented internal endpoints. There is no official SDK, no versioning guarantee, and no changelog. Google can change or remove any endpoint at any time. When this happens, updates to `notebooklm-mcp-cli` are typically released within a few days of a widespread breakage being reported.
+  </Accordion>
+
+  <Accordion title="NotebookLM Enterprise accounts">
+    Enterprise accounts have not been officially tested. They may work with the `NOTEBOOKLM_BASE_URL` environment variable set to your enterprise endpoint:
+
+    ```bash
+    export NOTEBOOKLM_BASE_URL="https://notebooklm.google.com"
+    ```
+
+    If you are using an Enterprise account and encounter issues, check the GitHub Issues page for reports from other Enterprise users.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Getting Help
+
+<AccordionGroup>
+  <Accordion title="Run diagnostics with nlm doctor">
+    The `doctor` command runs a comprehensive suite of checks and prints a summary of what is working and what needs attention:
+
+    ```bash
+    nlm doctor
+    ```
+
+    For more detail including Python version, binary paths, and environment variables:
+
+    ```bash
+    nlm doctor --verbose
+    ```
+
+    **Checks performed:**
+
+    | Category | What it checks |
+    |----------|---------------|
+    | Installation | Package version, `nlm` and `notebooklm-mcp` binary paths |
+    | Authentication | Profile status, cookies present, CSRF token, account email |
+    | Browser | Chromium-based browser installed and usable |
+    | AI Tools | MCP configuration status for each supported client |
+
+    Each issue includes a suggested fix.
+  </Accordion>
+
+  <Accordion title="What to include in a bug report">
+    When opening a [GitHub Issue](https://github.com/jacob-bd/notebooklm-cli/issues), include:
+
+    1. **The exact operation that failed** — the full `nlm` command you ran.
+    2. **The full error message** — redact any cookie values or personal information.
+    3. **Whether the operation worked before** — if so, when did it last work?
+    4. **The current date** — Google deploys changes frequently; the date helps correlate your report with a specific deployment.
+    5. **Output of `nlm doctor --verbose`** — this captures version, auth status, and environment in one block.
+
+    Example issue template:
+
+    ```
+    **Command:** nlm research start "AI trends" --notebook-id abc123 --mode deep
+    **Error:** ValueError: Could not parse research response
+    **Last worked:** 2025-06-10
+    **Date of failure:** 2025-06-15
+    **nlm doctor --verbose output:** (paste here)
+    ```
+  </Accordion>
+</AccordionGroup>

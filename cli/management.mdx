@@ -1,0 +1,248 @@
+---
+title: "Management Commands — NotebookLM CLI Reference"
+sidebarTitle: "Management"
+description: "Configure the CLI, manage aliases, set chat behaviour, run diagnostics, and configure MCP server integrations."
+---
+
+The management commands cover everything outside of notebooks and content: persisted configuration settings, short-name aliases for long IDs, per-notebook chat configuration, note management, diagnostics, and MCP server setup for AI tool integrations.
+
+---
+
+## Configuration
+
+The `nlm config` commands read and write settings stored in `~/.notebooklm-mcp-cli/config.toml`. All settings use a `section.key` dot-notation.
+
+### `config show`
+
+Print the entire current configuration.
+
+```bash
+nlm config show
+nlm config show --json
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON instead of TOML |
+
+### `config get`
+
+Read a single configuration value.
+
+```bash
+nlm config get auth.default_profile
+nlm config get output.format
+nlm config get output.color
+```
+
+### `config set`
+
+Write a single configuration value. Changes take effect immediately for subsequent commands.
+
+```bash
+nlm config set auth.default_profile work
+nlm config set output.format json
+nlm config set output.color false
+nlm config set output.short_ids true
+```
+
+**Available settings**
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `output.format` | `table` | Default output format: `table` or `json` |
+| `output.color` | `true` | Enable coloured terminal output |
+| `output.short_ids` | `true` | Show shortened IDs in table output |
+| `auth.browser` | `auto` | Preferred browser for login: `auto`, `chrome`, `arc`, `brave`, `edge`, `chromium`, `vivaldi`, `opera`. Falls back to `auto` if the chosen browser is not found. |
+| `auth.default_profile` | `default` | Profile used when `--profile` is not specified. **The MCP server always uses the active default profile** — changing this setting instantly switches the MCP server's Google account. |
+
+---
+
+## Aliases
+
+Aliases map short, memorable names to full notebook, source, or artifact UUIDs. Once set, any command that accepts an ID will also accept the alias.
+
+### `alias set`
+
+Create or update an alias. The type (notebook, source, artifact, task) is auto-detected by default.
+
+```bash
+nlm alias set myproject <notebook-id>
+nlm alias set main-audio <artifact-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--type` | `-t` | Force type: `notebook`, `source`, `artifact`, `task` |
+| `--profile` | `-p` | Profile to use for ID type detection |
+
+### `alias list`
+
+Show all defined aliases with their resolved IDs and types.
+
+```bash
+nlm alias list
+```
+
+### `alias get`
+
+Resolve an alias to its full UUID.
+
+```bash
+nlm alias get myproject
+# → abc12345-6789-...
+```
+
+### `alias delete`
+
+Remove an alias. This does not affect the underlying notebook or artifact.
+
+```bash
+nlm alias delete myproject
+nlm alias delete myproject --confirm   # skip prompt
+```
+
+### Using aliases
+
+Once an alias is defined it works anywhere an ID is accepted:
+
+```bash
+# All equivalent after: nlm alias set research <notebook-id>
+nlm notebook get research
+nlm source list research
+nlm audio create research --confirm
+nlm notebook query research "What are the key findings?"
+```
+
+---
+
+## Chat configuration
+
+Customise the AI chat behaviour for a specific notebook — choose the goal template and response length, or provide a fully custom system prompt.
+
+### `chat configure`
+
+```bash
+# Use defaults
+nlm chat configure <notebook-id> --goal default --length default
+
+# Learning-focused, longer responses
+nlm chat configure <notebook-id> --goal learning_guide --length longer
+
+# Fully custom system prompt
+nlm chat configure <notebook-id> \
+  --goal custom \
+  --prompt "You are an expert patent attorney. Answer all questions with reference to relevant case law."
+```
+
+**Flags**
+
+| Flag | Description |
+|------|-------------|
+| `--goal` | Chat goal template: `default`, `learning_guide`, `custom` |
+| `--length` | Response length preference: `default`, `longer` |
+| `--prompt` | Custom system prompt (required when `--goal custom`) |
+
+**Goal templates**
+
+| Goal | Description |
+|------|-------------|
+| `default` | Balanced, general-purpose assistant |
+| `learning_guide` | Socratic style optimised for study and comprehension |
+| `custom` | Free-form system prompt defined by `--prompt` |
+
+---
+
+## Notes
+
+Notebooks support attached notes — short text snippets that are stored alongside sources and included in queries. The following commands manage notes inside a notebook.
+
+<CodeGroup>
+```bash List Notes
+nlm note list <notebook-id>
+nlm note list <notebook-id> --json
+```
+
+```bash Create a Note
+nlm note create <notebook-id> "This is a quick observation about the Q3 data."
+nlm note create <notebook-id> "Key definitions" --title "Glossary"
+```
+
+```bash Update a Note
+nlm note update <note-id> "Updated content for the note."
+```
+
+```bash Delete a Note
+nlm note delete <note-id> --confirm
+```
+</CodeGroup>
+
+---
+
+## Doctor diagnostics
+
+`nlm doctor` runs a suite of checks to verify that your installation, authentication, browser, and AI tool integrations are all working correctly. Run it whenever you encounter unexpected behaviour or after a fresh install.
+
+```bash
+# Run all checks
+nlm doctor
+
+# Include additional detail (Python version, file paths, profile info)
+nlm doctor --verbose
+```
+
+**Checks performed**
+
+| Category | What is checked |
+|----------|-----------------|
+| Installation | Package version, `nlm` and `notebooklm-mcp` binary paths |
+| Authentication | Profile existence, cookies present, CSRF token, associated Google account email |
+| Browser | Chromium-based browser found on PATH, saved Chrome profile for headless re-auth |
+| AI Tools | MCP configuration status for each supported client (Claude Code, Gemini, Cursor, Windsurf) |
+
+Each failed check includes a suggested fix, for example:
+
+```
+  Authentication: Cookies: missing
+  → Run nlm login to authenticate
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--verbose` | `-v` | Show Python version, file paths, last-validated time, and per-profile detail |
+
+---
+
+## Setup — MCP server configuration
+
+`nlm setup` configures the NotebookLM MCP server transport for AI tools that support the Model Context Protocol. This is a one-time setup step per tool.
+
+```bash
+# Add the MCP server to a specific tool
+nlm setup add claude-code
+nlm setup add gemini
+nlm setup add cursor
+nlm setup add windsurf
+nlm setup add github-copilot
+
+# Remove the server from a tool
+nlm setup remove gemini
+
+# List all supported clients and their current config status
+nlm setup list
+
+# Generate a JSON snippet for tools not in the registry
+nlm setup add json
+```
+
+**Supported clients:** `claude-code`, `gemini`, `github-copilot`, `cursor`, `windsurf`, `cline`, `antigravity`, `codex`, `opencode`
+
+<Note>
+`nlm setup` configures the MCP server transport layer. To install skill / reference documentation for AI coding tools that do not use MCP, use `nlm skill install` instead. See the MCP overview page for a full walkthrough of both.
+</Note>

@@ -1,0 +1,157 @@
+---
+title: "NotebookLM MCP Server: Overview & Quick Setup"
+sidebarTitle: "Overview"
+description: "Connect any MCP-compatible AI assistant to NotebookLM. The MCP server exposes 35 tools for notebooks, sources, research, studio content, and more."
+---
+
+The NotebookLM MCP server is a standards-compliant [Model Context Protocol](https://modelcontextprotocol.io) server that gives any MCP-compatible AI assistant — Claude Code, Gemini CLI, Cursor, Windsurf, GitHub Copilot, and others — direct, programmatic access to Google NotebookLM. Once connected, your AI can create and manage notebooks, add sources from the web or Google Drive, run deep research, generate studio content (podcasts, videos, slide decks, and more), share notebooks, and handle dozens of other tasks — all through natural language, without you ever opening a browser.
+
+<Warning>
+  **Context window notice:** The MCP server registers **35 tools** with your AI assistant. Each tool consumes a small amount of context on every request. Disable the server when you are not actively using NotebookLM to preserve context budget. In Claude Code, type `@notebooklm-mcp` to toggle it on or off.
+</Warning>
+
+<Note>
+  **Server name matters:** Always register the server as `notebooklm-mcp` (not `notebooklm`). If you have a legacy browser-automation NotebookLM MCP installed under a different name, remove it first — AI assistants get confused when two servers expose overlapping tool names such as `notebook_create` or `source_add`.
+</Note>
+
+## Quick Setup
+
+<Steps>
+  <Step title="Install the package">
+    Install `notebooklm-mcp-cli` from PyPI. The package includes both the `nlm` CLI and the `notebooklm-mcp` server binary.
+
+    ```bash
+    uv tool install notebooklm-mcp-cli
+    ```
+
+    You can also use `pip install notebooklm-mcp-cli` or `pipx install notebooklm-mcp-cli`.
+  </Step>
+
+  <Step title="Authenticate with NotebookLM">
+    Run the login command. It launches a dedicated browser profile, you sign in with your Google account, and cookies are extracted automatically.
+
+    ```bash
+    nlm login
+    ```
+
+    Your session persists and auto-refreshes. Run `nlm login --check` at any time to verify your auth status.
+  </Step>
+
+  <Step title="Configure your AI tool">
+    Use the `nlm setup add` command for automatic, zero-edit configuration — no JSON files to touch. Pick the tab for your tool:
+
+    <Tabs>
+      <Tab title="Claude Code">
+        **Automatic (recommended):**
+        ```bash
+        nlm setup add claude-code
+        ```
+
+        **Or use the Claude CLI directly:**
+        ```bash
+        claude mcp add --scope user notebooklm-mcp notebooklm-mcp
+        ```
+      </Tab>
+      <Tab title="Gemini CLI">
+        **Automatic (recommended):**
+        ```bash
+        nlm setup add gemini
+        ```
+
+        **Or use the Gemini CLI directly:**
+        ```bash
+        gemini mcp add --scope user notebooklm-mcp notebooklm-mcp
+        ```
+      </Tab>
+      <Tab title="GitHub Copilot">
+        ```bash
+        nlm setup add github-copilot
+        ```
+
+        This writes the server entry to `.vscode/mcp.json` in your workspace. See [Configuration](/mcp/configuration) for the manual JSON format.
+      </Tab>
+      <Tab title="Cursor">
+        ```bash
+        nlm setup add cursor
+        ```
+
+        This writes to `~/.cursor/mcp.json`. See [Configuration](/mcp/configuration) for the manual JSON format.
+      </Tab>
+      <Tab title="Windsurf">
+        ```bash
+        nlm setup add windsurf
+        ```
+
+        This writes to `~/.codeium/windsurf/mcp_config.json`. See [Configuration](/mcp/configuration) for the manual JSON format.
+      </Tab>
+      <Tab title="JSON (any tool)">
+        ```bash
+        nlm setup add json
+        ```
+
+        Runs an interactive wizard that generates a ready-to-paste JSON snippet for any MCP-compatible tool.
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Supported AI Tools
+
+<CardGroup cols={2}>
+  <Card title="Claude Code" icon="terminal">
+    Full MCP support. Use `@notebooklm-mcp` to toggle. Register with `nlm setup add claude-code` or `claude mcp add --scope user notebooklm-mcp notebooklm-mcp`.
+  </Card>
+  <Card title="Gemini CLI" icon="sparkles">
+    Full MCP support. Register with `nlm setup add gemini` or `gemini mcp add --scope user notebooklm-mcp notebooklm-mcp`.
+  </Card>
+  <Card title="Cursor" icon="pencil">
+    Full MCP support via `~/.cursor/mcp.json`. Register with `nlm setup add cursor`.
+  </Card>
+  <Card title="Windsurf" icon="wind">
+    Full MCP support via `~/.codeium/windsurf/mcp_config.json`. Register with `nlm setup add windsurf`.
+  </Card>
+  <Card title="GitHub Copilot (VS Code)" icon="code">
+    Workspace-scoped MCP support via `.vscode/mcp.json`. Register with `nlm setup add github-copilot`.
+  </Card>
+  <Card title="Any MCP-compatible tool" icon="plug">
+    Use `nlm setup add json` to generate a config snippet, or point the tool at the `notebooklm-mcp` binary directly. HTTP and SSE transports are also available.
+  </Card>
+</CardGroup>
+
+## Natural Language Examples
+
+Once connected, you interact with NotebookLM entirely through natural language. Here are some prompts you can say to your AI assistant:
+
+- *"List all my NotebookLM notebooks and show me their source counts."*
+- *"Create a new notebook called 'Competitive Analysis Q3' and add this URL as a source: https://example.com/report"*
+- *"Do a deep web research on 'enterprise AI ROI metrics', wait for it to finish, and import only the cited sources."*
+- *"Generate an audio podcast in deep-dive format for the notebook I just created, then poll until it's done and download the MP3."*
+- *"Query the 'Product Strategy' notebook: what are the three most important takeaways?"*
+- *"Make the 'Public Research' notebook publicly accessible and give me the share link."*
+- *"Tag all my research notebooks with 'ai,research', then batch-generate briefing docs for all of them."*
+- *"Run the ingest-and-podcast pipeline on the 'Weekly Reads' notebook using https://example.com/article as input."*
+
+<Tip>
+  Queries sent through the MCP automatically persist in your NotebookLM web UI chat history, so you can pick up the conversation in the browser at any time.
+</Tip>
+
+## Tool Categories
+
+The server exposes **35 tools** organized into the following categories. See the [Tools Reference](/mcp/tools-reference) for full parameter documentation and examples.
+
+| Category | Tools | What it covers |
+|---|---|---|
+| **Notebooks** | 6 | Create, list, get, describe, rename, delete |
+| **Sources** | 6 | Add (URL/text/file/Drive), list Drive, sync Drive, delete, describe, get content |
+| **Querying** | 2 | Ask AI about notebook sources, configure chat behavior |
+| **Studio** | 4 | Create audio/video/reports/quizzes/flashcards/slides/infographics, check status, delete, revise |
+| **Downloads** | 1 | Download any artifact type to a local file |
+| **Exports** | 1 | Export artifacts to Google Docs or Sheets |
+| **Research** | 3 | Start web/Drive research, poll progress, import discovered sources |
+| **Notes** | 1 | Create, list, update, and delete notebook notes (unified tool) |
+| **Sharing** | 3 | Get sharing status, enable/disable public link, invite collaborators |
+| **Auth** | 2 | Reload tokens from disk, save cookies manually (fallback) |
+| **Server** | 1 | Version info and auth status |
+| **Batch & Cross-Notebook** | 2 | Batch operations across multiple notebooks, aggregated cross-notebook queries |
+| **Pipelines** | 1 | List and run multi-step automated workflows |
+| **Tags** | 1 | Tag notebooks and smart-select by tag match |

@@ -1,0 +1,199 @@
+---
+title: "Authenticating with NotebookLM CLI on WSL2"
+sidebarTitle: "WSL Setup"
+description: "Configure Windows port proxying and use the --wsl flag to authenticate through Windows Chrome from a WSL2 terminal without terminal corruption."
+---
+
+WSL2 runs Linux inside a lightweight virtual machine, which means GUI applications like Chrome live on the Windows side of a network boundary. When `nlm login` tries to launch a browser directly from a WSL2 terminal, the GUI process crosses that boundary in a way that can corrupt the terminal display — the screen goes black, the session becomes unresponsive, and a restart is required. The `--wsl` flag solves this by launching Chrome on the Windows side, routing the Chrome DevTools Protocol connection back through a Windows port proxy, and extracting cookies automatically before cleaning up.
+
+---
+
+## The Problem in Detail
+
+On a standard Linux system, `nlm login` opens a local Chrome window, waits for you to log in, and extracts session cookies using the Chrome DevTools Protocol (CDP) over localhost. On WSL2, the same approach causes terminal corruption because:
+
+1. Chrome is a Windows GUI application — launching it from WSL2 crosses the virtual machine boundary.
+2. Chrome v136+ binds its CDP debug port to `127.0.0.1` only, which is the Windows loopback, not accessible from the WSL2 virtual network interface.
+3. Without a network bridge, the WSL2 process cannot connect to Chrome's debug port at all.
+
+The `--wsl` flag works around both issues: it launches Chrome on the Windows side on port **9223**, and a one-time `netsh` port proxy forwards traffic from the WSL-accessible network interface (port **9222**) to Windows `localhost:9223`.
+
+---
+
+## One-Time Setup
+
+<Steps>
+  <Step title="Ensure Google Chrome is installed on Windows">
+    The `--wsl` flag requires Google Chrome installed on the **Windows** side — not inside WSL. Download it from [google.com/chrome](https://www.google.com/chrome/) if needed.
+
+    Before running `nlm login --wsl`, **close all open Chrome windows** on Windows (check the system tray too). Chrome's remote debugging mode only works when launched fresh.
+  </Step>
+
+  <Step title="Create the port proxy (elevated PowerShell)">
+    Open PowerShell as Administrator and run:
+
+    ```powershell
+    netsh interface portproxy add v4tov4 listenport=9222 listenaddress=0.0.0.0 connectport=9223 connectaddress=127.0.0.1
+    ```
+
+    This rule persists across reboots. It forwards any connection to port 9222 on the Windows host's network interfaces to `localhost:9223`, where Chrome will be listening.
+  </Step>
+
+  <Step title="Verify the proxy was created">
+    ```powershell
+    netsh interface portproxy show v4tov4
+    ```
+
+    You should see a row with `0.0.0.0` / `9222` → `127.0.0.1` / `9223`.
+  </Step>
+</Steps>
+
+---
+
+## Authenticate
+
+```bash
+nlm login --wsl
+```
+
+This single command:
+
+1. Detects your Windows host IP from the WSL2 default gateway.
+2. Checks whether the Windows Firewall rule for port 9222 is in place (and prompts with instructions if not).
+3. Launches `chrome.exe` on the Windows side with `--remote-debugging-port=9223`.
+4. Connects to Chrome via the port proxy at `<windows-ip>:9222`.
+5. Opens `notebooklm.google.com` in a fresh Chrome tab.
+6. Waits for you to complete the Google login.
+7. Extracts cookies via CDP, saves them to your `nlm` profile, and terminates Chrome.
+
+Verify the saved credentials afterwards:
+
+```bash
+nlm login --check
+nlm notebook list
+```
+
+<Note>
+  If `--wsl` is problematic in your environment, use **manual mode** instead. Export your cookies from Chrome using the Cookie-Editor extension, save the file somewhere WSL can read it, then run:
+  ```bash
+  nlm login --manual --file /mnt/c/Users/<username>/Downloads/cookies.txt
+  ```
+  Manual mode requires no port proxy, no Chrome launch, and no network bridge.
+</Note>
+
+---
+
+## Security Considerations
+
+The port proxy approach introduces a temporary network exposure on port 9222. The following mitigations are in place:
+
+- **Chrome binds to localhost only (v136+).** Chrome never listens on the public network interface — only on `127.0.0.1:9223` on the Windows side.
+- **Port proxy forwards to localhost only.** The `netsh` rule forwards to `connectaddress=127.0.0.1`, so the proxy cannot be redirected to an external host.
+- **Temporary Chrome profiles.** Each `nlm login --wsl` run creates a fresh, isolated Chrome profile in a temporary Windows directory that is cleaned up after authentication completes.
+- **Short-lived exposure.** The remote debug port is only active during the `nlm login --wsl` command. Once cookies are extracted, Chrome is terminated and port 9223 is no longer listening.
+- **Windows Firewall restriction.** The firewall rule created by `nlm login --wsl` restricts inbound connections on port 9222 to `LocalSubnet` — the WSL2 virtual network — blocking connections from external network hosts.
+
+---
+
+## Comparison: Native Linux vs WSL2
+
+| Feature | Native Linux | WSL2 |
+|---------|-------------|------|
+| Chrome launch | Direct GUI | Cross VM boundary — use `--wsl` |
+| Terminal safety | ✅ Safe with direct launch | ⚠️ Requires `--wsl` flag |
+| Cookie extraction method | CDP over localhost | CDP over WSL↔Windows network bridge |
+| Port proxy required | No | Yes (one-time `netsh` setup) |
+| Profile persistence | ✅ Yes | ✅ Yes |
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Chrome did not start within 30 seconds">
+    This almost always means Chrome was already running when `nlm login --wsl` tried to launch a fresh instance. Chrome's remote debugging mode only works when started from scratch.
+
+    **Fix:**
+    1. Close all Chrome windows on Windows (including any minimized to the system tray).
+    2. Open Task Manager and check for lingering `chrome.exe` processes — terminate them.
+    3. Retry `nlm login --wsl`.
+
+    If the problem persists after closing Chrome, verify the port proxy is in place:
+
+    ```powershell
+    netsh interface portproxy show v4tov4
+    ```
+
+    Also verify the firewall rule was created:
+
+    ```powershell
+    Get-NetFirewallRule -DisplayName "NotebookLM-CDP-9222"
+    ```
+  </Accordion>
+
+  <Accordion title="Chrome not found on Windows side">
+    The `--wsl` flag looks for Chrome in two standard locations:
+
+    - `C:\Program Files\Google\Chrome\Application\chrome.exe`
+    - `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`
+
+    If Chrome is installed elsewhere, you have two options:
+
+    **Option A — Create a WSL symlink:**
+
+    ```bash
+    sudo ln -s "/mnt/c/path/to/your/chrome.exe" /usr/local/bin/chrome.exe
+    ```
+
+    **Option B — Use manual mode:**
+
+    Export cookies from Chrome using the Cookie-Editor browser extension, save the file, then:
+
+    ```bash
+    nlm login --manual --file /mnt/c/Users/<username>/Downloads/cookies.txt
+    ```
+
+    You can also set the `NLM_CHROME_PATH` environment variable to point directly to your Chrome binary:
+
+    ```bash
+    export NLM_CHROME_PATH="/mnt/c/Custom/Path/chrome.exe"
+    nlm login --wsl
+    ```
+  </Accordion>
+
+  <Accordion title="Could not determine Windows host IP">
+    `nlm login --wsl` reads the Windows host IP from the WSL2 default gateway in `/etc/resolv.conf`. If your WSL2 networking is in a non-standard mode (e.g., mirrored networking), this lookup may fail.
+
+    **Check the resolv.conf entry:**
+
+    ```bash
+    cat /etc/resolv.conf
+    grep nameserver /etc/resolv.conf
+    ```
+
+    You should see a line like `nameserver 172.20.x.x`. If the file is empty or missing, your WSL2 networking is configured differently.
+
+    **Manual workaround:**
+
+    ```bash
+    WINDOWS_IP=$(ip route show | grep default | awk '{print $3}')
+    nlm login --cdp-url http://$WINDOWS_IP:9222
+    ```
+  </Accordion>
+
+  <Accordion title="Terminal still goes black after using --wsl">
+    If `--wsl` still causes display issues in your terminal emulator, fall back to fully manual cookie extraction:
+
+    1. Open Chrome on Windows and navigate to `notebooklm.google.com`.
+    2. Install the [Cookie-Editor](https://cookie-editor.com/) browser extension.
+    3. Export cookies to a JSON or header file.
+    4. Save to a path accessible from WSL (e.g., `C:\Users\<name>\Downloads\cookies.txt`).
+    5. Import with:
+
+    ```bash
+    nlm login --manual --file /mnt/c/Users/<name>/Downloads/cookies.txt
+    ```
+
+    This approach requires no Chrome launch from WSL and no port proxy.
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,245 @@
+---
+title: "Installing AI Skills for NotebookLM CLI Tools"
+sidebarTitle: "AI Skills"
+description: "Install expert reference guides into AI coding assistants so they know how to use the NotebookLM CLI and MCP server effectively out of the box."
+---
+
+AI skills are expert reference guides that you install directly into your AI assistant's context. When an AI tool reads a skill file on startup, it gains accurate, up-to-date knowledge of `nlm` commands, workflows, best practices, and troubleshooting tips — without needing to be told anything in a system prompt. Think of a skill as a compact manual that travels with your AI session wherever it runs.
+
+Skills are distinct from the MCP server integration. The MCP server gives an AI assistant *functional access* to NotebookLM — the ability to actually call the API and manipulate notebooks. A skill gives the AI *reference knowledge* about how to use those tools well: the right flags, correct argument order, known pitfalls, and recommended workflows. You can install one without the other, but they work best together.
+
+<Note>
+  `nlm setup` (and `nlm setup add <tool>`) configures the **MCP server transport** — the connection that lets an AI assistant call NotebookLM's API. `nlm skill install <tool>` installs **AI reference documentation** into the tool's skill/rules directory. These are separate concerns and separate commands.
+</Note>
+
+---
+
+## Installing Skills
+
+Run the appropriate install command for your AI tool. By default, skills are installed at the user level (your home directory), so they apply to every project you open.
+
+<Steps>
+  <Step title="Claude Code">
+    ```bash
+    nlm skill install claude-code
+    ```
+    Installs `SKILL.md` and reference files into `~/.claude/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="Cursor">
+    ```bash
+    nlm skill install cursor
+    ```
+    Installs into `~/.cursor/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="Cline">
+    ```bash
+    nlm skill install cline
+    ```
+    Installs into `~/.cline/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="OpenClaw">
+    ```bash
+    nlm skill install openclaw
+    ```
+    Installs into `~/.openclaw/workspace/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="Codex / Gemini CLI / Generic agents">
+    All three of the following commands install to the same shared path — they are interchangeable aliases for the cross-tool compatible `~/.agents/skills/nlm-skill/` location:
+    ```bash
+    nlm skill install agents      # Generic name
+    nlm skill install codex       # Alias for OpenAI Codex CLI
+    nlm skill install gemini-cli  # Alias for Google Gemini CLI
+    ```
+    Gemini CLI (v0.33.1+) and Codex both read from `.agents/skills/`.
+  </Step>
+
+  <Step title="OpenCode">
+    ```bash
+    nlm skill install opencode
+    ```
+    Installs into `~/.config/opencode/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="Antigravity">
+    ```bash
+    nlm skill install antigravity
+    ```
+    Installs into `~/.gemini/antigravity/skills/nlm-skill/`.
+  </Step>
+
+  <Step title="Alef Agent">
+    ```bash
+    nlm skill install alef-agent
+    ```
+    Alef Agent uses a different base path and requires tool-specific frontmatter (`type: tool`, `status: approved`). Installs into `~/.alef-agent/workspace/skills/nlm-skill/`.
+  </Step>
+</Steps>
+
+### Project-Level Install
+
+Add `--level project` to install into the current working directory instead of your home directory. This is useful for per-repository skill configurations:
+
+```bash
+nlm skill install claude-code --level project
+# Installs to ./.claude/skills/nlm-skill/
+
+nlm skill install agents --level project
+# Installs to ./.agents/skills/nlm-skill/
+```
+
+---
+
+## Supported Tools at a Glance
+
+<CardGroup cols={2}>
+  <Card title="Claude Code" icon="c">
+    **Install path (user):** `~/.claude/skills/nlm-skill/`
+
+    **Install path (project):** `.claude/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install claude-code
+    ```
+  </Card>
+
+  <Card title="Cursor" icon="arrow-pointer">
+    **Install path (user):** `~/.cursor/skills/nlm-skill/`
+
+    **Install path (project):** `.cursor/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install cursor
+    ```
+  </Card>
+
+  <Card title="Cline" icon="terminal">
+    **Install path (user):** `~/.cline/skills/nlm-skill/`
+
+    **Install path (project):** `.cline/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install cline
+    ```
+  </Card>
+
+  <Card title="Agents / Codex / Gemini CLI" icon="robot">
+    **Install path (user):** `~/.agents/skills/nlm-skill/`
+
+    **Install path (project):** `.agents/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install agents
+    nlm skill install codex
+    nlm skill install gemini-cli
+    ```
+  </Card>
+
+  <Card title="OpenCode" icon="code">
+    **Install path (user):** `~/.config/opencode/skills/nlm-skill/`
+
+    **Install path (project):** `.opencode/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install opencode
+    ```
+  </Card>
+
+  <Card title="Antigravity" icon="rocket">
+    **Install path (user):** `~/.gemini/antigravity/skills/nlm-skill/`
+
+    **Install path (project):** `.agents/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install antigravity
+    ```
+  </Card>
+
+  <Card title="OpenClaw" icon="paw-simple">
+    **Install path (user):** `~/.openclaw/workspace/skills/nlm-skill/`
+
+    **Install path (project):** `.openclaw/workspace/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install openclaw
+    ```
+  </Card>
+
+  <Card title="Alef Agent" icon="a">
+    **Install path (user):** `~/.alef-agent/workspace/skills/nlm-skill/`
+
+    **Install path (project):** `.alef-agent/workspace/skills/nlm-skill/`
+
+    ```bash
+    nlm skill install alef-agent
+    ```
+  </Card>
+</CardGroup>
+
+---
+
+## Managing Skills
+
+### Check Installation Status
+
+```bash
+nlm skill list
+```
+
+Displays a table showing every supported tool, its description, and whether the skill is installed at user and/or project level. Outdated versions are highlighted in yellow.
+
+```
+┌─────────────┬──────────────────────────────┬──────┬─────────┐
+│ Tool        │ Description                  │ User │ Project │
+├─────────────┼──────────────────────────────┼──────┼─────────┤
+│ claude-code │ Claude Code CLI and Desktop  │  ✓   │    -    │
+│ cursor      │ Cursor AI editor             │  -   │    -    │
+│ agents      │ Generic agent skill          │  ✓   │    -    │
+└─────────────┴──────────────────────────────┴──────┴─────────┘
+```
+
+### View Skill Content
+
+```bash
+nlm skill show
+```
+
+Prints the full content of the `SKILL.md` file to your terminal so you can review what gets installed.
+
+### Update Installed Skills
+
+```bash
+nlm skill update              # Update all outdated skills
+nlm skill update claude-code  # Update a specific tool only
+```
+
+After upgrading `notebooklm-mcp-cli`, run `nlm skill update` to push the latest reference content to all your AI tools.
+
+### Uninstall a Skill
+
+```bash
+nlm skill uninstall claude-code
+nlm skill uninstall agents --level project
+```
+
+Removes the skill directory (or section, for AGENTS.md-format tools) from the install location.
+
+---
+
+## Verb-First Alternatives
+
+The CLI supports both noun-first and verb-first command styles. The following are equivalent to their `nlm skill` counterparts:
+
+```bash
+# Install
+nlm install skill claude-code
+nlm install skill agents --level project
+
+# List
+nlm list skills
+```
+
+Use whichever style feels more natural in your workflow.

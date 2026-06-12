@@ -1,0 +1,448 @@
+---
+title: "Studio Commands — NotebookLM CLI Reference"
+sidebarTitle: "Studio"
+description: "Generate AI content artifacts — podcasts, videos, reports, quizzes, mind maps, slides, and more — from your notebook sources."
+---
+
+Studio commands turn your notebook sources into polished content artifacts using NotebookLM's AI generation pipeline. A single notebook can produce audio overviews, video summaries, written reports, interactive quizzes, flashcard decks, mind maps, slide presentations, infographics, and data tables — all from the same source material.
+
+<Note>
+Artifact generation is asynchronous and typically takes **1–5 minutes** depending on notebook size and artifact type. After starting generation, poll with `nlm studio status <notebook-id>` until the artifact shows as ready, then download it with `nlm download`.
+</Note>
+
+The CLI supports two command styles:
+
+```bash
+# Noun-first
+nlm audio create <notebook> --format deep_dive --confirm
+
+# Verb-first
+nlm create audio <notebook> --format deep_dive --confirm
+```
+
+---
+
+## Audio overviews
+
+Generate a podcast-style audio overview from your notebook sources.
+
+```bash
+nlm audio create <notebook-id> --confirm
+nlm audio create <notebook-id> --format deep_dive --length long --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--format` | `-f` | `deep_dive` | Overview style: `deep_dive`, `brief`, `critique`, `debate` |
+| `--length` | `-l` | `default` | Duration: `short`, `default`, `long` |
+| `--focus` | | | Optional focus topic to guide the conversation |
+| `--source-ids` | `-s` | | Comma-separated source IDs (default: all) |
+| `--language` | | | BCP-47 language code (default: `NOTEBOOKLM_HL` env var or `en`) |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+<CodeGroup>
+```bash Deep Dive Podcast
+nlm audio create <notebook-id> \
+  --format deep_dive \
+  --length long \
+  --confirm
+```
+
+```bash Brief Overview
+nlm audio create <notebook-id> \
+  --format brief \
+  --length short \
+  --confirm
+```
+
+```bash Focused Debate
+nlm audio create <notebook-id> \
+  --format debate \
+  --focus "Pros and cons of large language models in healthcare" \
+  --confirm
+```
+</CodeGroup>
+
+---
+
+## Video overviews
+
+Generate a narrated video overview with an animated visual style.
+
+```bash
+nlm video create <notebook-id> --confirm
+nlm video create <notebook-id> --format explainer --style classic --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--format` | `-f` | `explainer` | Video style: `explainer`, `brief`, `cinematic` |
+| `--style` | `-s` | `auto_select` | Visual theme (see table below) |
+| `--style-prompt` | | | Custom style description (implies `--style custom` for explainer/brief) |
+| `--focus` | | | Focus topic or creative direction |
+| `--source-ids` | | | Comma-separated source IDs |
+| `--language` | | | BCP-47 language code |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+**Available visual styles**
+
+| Style | Description |
+|-------|-------------|
+| `auto_select` | Let NotebookLM choose automatically |
+| `custom` | Use `--style-prompt` to describe your own |
+| `classic` | Clean, professional look |
+| `whiteboard` | Hand-drawn whiteboard aesthetic |
+| `kawaii` | Cute Japanese-inspired art |
+| `anime` | Anime illustration style |
+| `watercolor` | Soft watercolor painting look |
+| `retro_print` | Vintage print/poster aesthetic |
+| `heritage` | Classic heritage illustration |
+| `paper_craft` | Cut-paper collage style |
+
+<CodeGroup>
+```bash Explainer with Classic Style
+nlm video create <notebook-id> \
+  --format explainer \
+  --style classic \
+  --confirm
+```
+
+```bash Custom Style Prompt
+nlm video create <notebook-id> \
+  --format brief \
+  --style custom \
+  --style-prompt "A children's storybook illustration with bright colours and friendly characters" \
+  --confirm
+```
+
+```bash Cinematic
+nlm video create <notebook-id> \
+  --format cinematic \
+  --focus "Dramatic retelling of the discovery, aimed at a general audience" \
+  --confirm
+```
+</CodeGroup>
+
+---
+
+## Reports
+
+Generate a structured written report from notebook sources.
+
+```bash
+nlm report create <notebook-id> --format "Briefing Doc" --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--format` | `-f` | `Briefing Doc` | Report type: `Briefing Doc`, `Study Guide`, `Blog Post`, `Create Your Own` |
+| `--prompt` | | | Custom prompt (required when format is `Create Your Own`) |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--language` | | | BCP-47 language code |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+<CodeGroup>
+```bash Briefing Doc
+nlm report create <notebook-id> --format "Briefing Doc" --confirm
+```
+
+```bash Study Guide
+nlm report create <notebook-id> --format "Study Guide" --confirm
+```
+
+```bash Custom Report
+nlm report create <notebook-id> \
+  --format "Create Your Own" \
+  --prompt "Write a press release announcing the findings as if from a Fortune 500 company." \
+  --confirm
+```
+</CodeGroup>
+
+---
+
+## Quizzes
+
+Generate a multiple-choice quiz from notebook sources.
+
+```bash
+nlm quiz create <notebook-id> --count 10 --difficulty 3 --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--count` | `-c` | `2` | Number of questions |
+| `--difficulty` | `-d` | `2` | Difficulty level 1–5 (1 = easiest, 5 = hardest) |
+| `--focus` | `-f` | | Focus prompt to guide question generation |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+```bash
+# 10-question quiz, medium difficulty, focused on key concepts
+nlm quiz create <notebook-id> \
+  --count 10 \
+  --difficulty 3 \
+  --focus "Focus on the experimental methodology and results sections" \
+  --confirm
+```
+
+---
+
+## Flashcards
+
+Generate study flashcards from notebook sources.
+
+```bash
+nlm flashcards create <notebook-id> --difficulty hard --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--difficulty` | `-d` | `medium` | Card difficulty: `easy`, `medium`, `hard` |
+| `--focus` | `-f` | | Focus prompt to guide card generation |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+## Mind maps
+
+Generate a structured mind map of the notebook's key concepts.
+
+```bash
+nlm mindmap create <notebook-id> --confirm
+nlm mindmap create <notebook-id> --title "AI Research Map" --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--title` | `-t` | `Mind Map` | Mind map title |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+## Slide decks
+
+Generate a presentation slide deck from notebook sources.
+
+```bash
+nlm slides create <notebook-id> --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--format` | `-f` | `detailed_deck` | Deck format: `detailed_deck`, `presenter_slides` |
+| `--length` | `-l` | `default` | Deck length: `short`, `default` |
+| `--focus` | | | Optional focus topic |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--language` | | | BCP-47 language code |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+### Revise slides
+
+Apply targeted revisions to individual slides in an existing deck. This creates a **new** deck — the original is not modified.
+
+```bash
+# Revise a single slide
+nlm slides revise <artifact-id> \
+  --slide '1 Make the title larger' \
+  --confirm
+
+# Revise multiple slides in one command
+nlm slides revise <artifact-id> \
+  --slide '1 Make the title larger' \
+  --slide '3 Remove the product roadmap image' \
+  --slide '5 Add a call-to-action bullet point' \
+  --confirm
+```
+
+Each `--slide` value is the slide number followed by the instruction text. Multiple `--slide` flags are supported.
+
+---
+
+## Infographics
+
+Generate a visual infographic summarising key information from notebook sources.
+
+```bash
+nlm infographic create <notebook-id> --confirm
+nlm infographic create <notebook-id> --orientation portrait --style professional --confirm
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--orientation` | `-o` | `landscape` | Page orientation: `landscape`, `portrait`, `square` |
+| `--detail` | `-d` | `standard` | Detail level: `concise`, `standard`, `detailed` |
+| `--style` | | `auto_select` | Visual style: `auto_select`, `sketch_note`, `professional`, `bento_grid`, `editorial`, `instructional`, `bricks`, `clay`, `anime`, `kawaii`, `scientific` |
+| `--focus` | | | Optional focus topic |
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--language` | | | BCP-47 language code |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+## Data tables
+
+Generate a structured data table extracted from notebook sources.
+
+```bash
+nlm data-table create <notebook-id> "Sales figures by region and quarter" --confirm
+```
+
+The positional argument is a description of what data the table should contain. It guides the AI in selecting and organising the right information.
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--source-ids` | `-s` | | Comma-separated source IDs |
+| `--language` | | | BCP-47 language code |
+| `--confirm` | `-y` | | Skip confirmation prompt |
+| `--profile` | `-p` | | Profile to use |
+
+---
+
+## Studio status and management
+
+### `studio status`
+
+List all artifacts for a notebook and their current generation status.
+
+```bash
+nlm studio status <notebook-id>
+nlm studio status <notebook-id> --json
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--full` | `-a` | Show all details |
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+### `studio delete`
+
+Permanently delete a studio artifact.
+
+<Warning>
+Artifact deletion is **irreversible**. Use `--confirm` to skip the interactive prompt in scripts.
+</Warning>
+
+```bash
+nlm studio delete <notebook-id> <artifact-id> --confirm
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--confirm` | `-y` | Skip confirmation prompt |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+## Downloading artifacts
+
+Once an artifact is ready, download it with `nlm download`. The artifact type determines the default file format.
+
+| Artifact type | Command | Default format |
+|--------------|---------|----------------|
+| Audio | `nlm download audio` | `.m4a` |
+| Video | `nlm download video` | `.mp4` |
+| Report | `nlm download report` | `.md` |
+| Mind map | `nlm download mind-map` | `.json` |
+| Slide deck | `nlm download slide-deck` | `.pdf` (also `--format pptx`) |
+| Infographic | `nlm download infographic` | `.png` |
+| Data table | `nlm download data-table` | `.csv` |
+| Quiz | `nlm download quiz --format html\|markdown\|json` | varies |
+| Flashcards | `nlm download flashcards --format html\|markdown\|json` | varies |
+
+```bash
+# Download audio
+nlm download audio <notebook-id> --output podcast.m4a
+
+# Download with a specific artifact ID (when multiple exist)
+nlm download audio <notebook-id> --id <artifact-id> --output podcast.m4a
+
+# Download slide deck as PPTX
+nlm download slide-deck <notebook-id> --format pptx --output deck.pptx
+
+# Download quiz as HTML
+nlm download quiz <notebook-id> --format html --output quiz.html
+
+# Download flashcards as Markdown
+nlm download flashcards <notebook-id> --format markdown --output cards.md
+```
+
+---
+
+## Complete workflow example
+
+<Steps>
+  <Step title="Add sources to a notebook">
+    ```bash
+    nlm source add <notebook-id> --url "https://arxiv.org/abs/2501.00001" --wait
+    nlm source add <notebook-id> --file supplementary.pdf --wait
+    ```
+  </Step>
+  <Step title="Start audio generation">
+    ```bash
+    nlm audio create <notebook-id> --format deep_dive --length long --confirm
+    # → Artifact ID: art-abc123
+    ```
+  </Step>
+  <Step title="Poll status until ready">
+    ```bash
+    # Run repeatedly until status shows "ready"
+    nlm studio status <notebook-id>
+    ```
+
+    Or automate polling in a shell loop:
+
+    ```bash
+    while true; do
+      status=$(nlm studio status <notebook-id> --json | jq -r '.artifacts[0].status')
+      echo "Status: $status"
+      [ "$status" = "complete" ] && break
+      sleep 30
+    done
+    ```
+  </Step>
+  <Step title="Download the artifact">
+    ```bash
+    nlm download audio <notebook-id> --output research-podcast.m4a
+    ```
+  </Step>
+  <Step title="Generate a report from the same sources">
+    ```bash
+    nlm report create <notebook-id> --format "Briefing Doc" --confirm
+    # Wait for completion, then:
+    nlm download report <notebook-id> --output briefing.md
+    ```
+  </Step>
+</Steps>

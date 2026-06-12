@@ -1,0 +1,264 @@
+---
+title: "Source Commands — NotebookLM CLI Reference"
+sidebarTitle: "Sources"
+description: "Add, list, describe, sync, and delete sources inside a NotebookLM notebook using the nlm source subcommands."
+---
+
+Sources are the documents, URLs, videos, and text snippets that NotebookLM reads when answering questions or generating studio content. The `nlm source` commands let you manage every aspect of a notebook's source library — from adding a PDF file to syncing stale Google Drive documents — directly from the terminal.
+
+The CLI supports two command styles:
+
+```bash
+# Noun-first
+nlm source add <notebook> --url "https://example.com"
+
+# Verb-first
+nlm add url <notebook> "https://example.com"
+```
+
+---
+
+## Commands
+
+### `source add`
+
+Add one or more sources to a notebook. Exactly one source type flag must be provided per invocation.
+
+```bash
+nlm source add <notebook-id> --url "https://example.com/article"
+```
+
+**Source type flags**
+
+| Flag | Description |
+|------|-------------|
+| `--url <url>` | Web URL (repeatable for bulk add) |
+| `--text <content>` | Inline text content |
+| `--file <path>` | Local file (PDF, DOCX, TXT, etc.) |
+| `--youtube <url>` | YouTube video URL (repeatable) |
+| `--drive <doc-id>` | Google Drive document ID |
+
+**Additional flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--wait` | `-w` | Poll until the source finishes processing |
+| `--wait-timeout` | | Max seconds to wait when `--wait` is set (default 600) |
+| `--title` | | Custom title for the source |
+| `--type` | | Drive doc type: `doc`, `slides`, `sheets`, `pdf` (default `doc`) |
+| `--profile` | `-p` | Profile to use |
+
+<Tip>
+Always pass `--wait` when you plan to query or generate studio content immediately after adding a source. Without it, the source may still be processing when your next command runs, leading to incomplete results.
+</Tip>
+
+**Examples by source type**
+
+<CodeGroup>
+```bash URL
+# Single URL
+nlm source add <notebook-id> --url "https://example.com/article" --wait
+
+# Multiple URLs in one shot (repeatable flag)
+nlm source add <notebook-id> \
+  --url "https://example.com/report" \
+  --url "https://example.com/appendix"
+```
+
+```bash Text
+# Inline text with a custom title
+nlm source add <notebook-id> \
+  --text "Key insight: revenue grew 40% YoY driven by enterprise deals." \
+  --title "Q3 Revenue Note"
+```
+
+```bash File
+# Upload a local PDF and wait until ready
+nlm source add <notebook-id> --file research.pdf --wait
+
+# Works with any supported format (DOCX, TXT, Markdown, etc.)
+nlm source add <notebook-id> --file notes.md --title "Meeting Notes"
+```
+
+```bash YouTube
+# Single video
+nlm source add <notebook-id> --youtube "https://youtu.be/dQw4w9WgXcQ" --wait
+
+# Multiple YouTube videos
+nlm source add <notebook-id> \
+  --youtube "https://youtu.be/videoA" \
+  --youtube "https://youtu.be/videoB"
+```
+
+```bash Google Drive
+# Add a Google Doc by its document ID
+nlm source add <notebook-id> --drive "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+
+# Add a Google Slides presentation
+nlm source add <notebook-id> \
+  --drive "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" \
+  --type slides \
+  --wait
+```
+</CodeGroup>
+
+---
+
+### `source list`
+
+List all sources in a notebook.
+
+```bash
+nlm source list <notebook-id>
+nlm source list myproject          # alias works here
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--full` | `-a` | Show all columns |
+| `--drive` | `-d` | Show Drive sources with freshness status |
+| `--skip-freshness` | `-S` | Skip freshness checks (faster, useful with `--drive`) |
+| `--json` | `-j` | Output as JSON |
+| `--quiet` | `-q` | Output IDs only |
+| `--url` | `-u` | Output as `ID: URL` format |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source get`
+
+Retrieve the full text content of a source as processed by NotebookLM.
+
+```bash
+nlm source get <source-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source describe`
+
+Ask the AI to generate a summary and extract keywords for a source. This is useful for quickly understanding what is in a large document without reading it yourself.
+
+```bash
+nlm source describe <source-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source stale`
+
+Check which Google Drive sources in a notebook have been updated since they were last imported — i.e., the Drive document is newer than the cached version in NotebookLM.
+
+```bash
+nlm source stale <notebook-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source sync`
+
+Re-import all stale Drive sources so NotebookLM has the latest content.
+
+```bash
+nlm source sync <notebook-id> --confirm
+
+# Sync only specific sources
+nlm source sync <notebook-id> --source-ids "id1,id2" --confirm
+```
+
+<Warning>
+Without `--confirm`, the CLI will prompt you interactively before syncing.
+</Warning>
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--source-ids` | `-s` | Comma-separated IDs to sync (default: all stale) |
+| `--confirm` | `-y` | Skip the confirmation prompt |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `source delete`
+
+Permanently delete one or more sources from a notebook.
+
+<Warning>
+Deletion is **irreversible**. The source content is removed from NotebookLM immediately. Pass `--confirm` in scripts to skip the interactive prompt.
+</Warning>
+
+```bash
+# Delete a single source
+nlm source delete <source-id> --confirm
+
+# Bulk delete — pass multiple IDs
+nlm source delete <id1> <id2> <id3> --confirm
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--confirm` | `-y` | Skip the confirmation prompt |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+## End-to-end example
+
+<Steps>
+  <Step title="Create a notebook and set an alias">
+    ```bash
+    nlm notebook create "Product Launch Research"
+    nlm alias set launch <notebook-id>
+    ```
+  </Step>
+  <Step title="Add sources and wait for processing">
+    ```bash
+    nlm source add launch --url "https://techcrunch.com/2025/01/launch-coverage" --wait
+    nlm source add launch --file competitive-brief.pdf --wait
+    nlm source add launch --youtube "https://youtu.be/keynote-recap" --wait
+    ```
+  </Step>
+  <Step title="Verify all sources are loaded">
+    ```bash
+    nlm source list launch
+    ```
+  </Step>
+  <Step title="Describe a source to check what was extracted">
+    ```bash
+    # Grab the first source ID
+    source_id=$(nlm source list launch --quiet | head -1)
+    nlm source describe "$source_id"
+    ```
+  </Step>
+  <Step title="Query the notebook">
+    ```bash
+    nlm notebook query launch "What are the main competitive risks identified?"
+    ```
+  </Step>
+</Steps>

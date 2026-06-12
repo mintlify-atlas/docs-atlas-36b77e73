@@ -1,0 +1,104 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "NotebookLM CLI & MCP Server",
+  "projectDescription": "A unified Python package providing a CLI (`nlm`) and an MCP server (`notebooklm-mcp`) for programmatic access to Google NotebookLM — enabling notebook management, source ingestion, AI-powered content generation, research automation, and AI agent integration.",
+  "theme": "luma",
+  "primaryColor": "#4A90D9",
+  "lightColor": "#EAF3FB",
+  "darkColor": "#1A3A5C",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "authentication"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/notebooks",
+              "cli/sources",
+              "cli/studio",
+              "cli/research",
+              "cli/sharing-batch",
+              "cli/management"
+            ]
+          },
+          {
+            "group": "MCP Server",
+            "pages": [
+              "mcp/overview",
+              "mcp/tools-reference",
+              "mcp/configuration"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/workflows",
+              "guides/ai-skills",
+              "guides/wsl-setup",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "CLI (`nlm`) with noun-first and verb-first command styles for scripting and automation",
+    "MCP server (`notebooklm-mcp`) exposing 35 tools for AI assistants (Claude, Gemini, Cursor, etc.)",
+    "Automatic browser-based authentication using Chrome DevTools Protocol (CDP)",
+    "Multi-profile Google account support with isolated browser sessions",
+    "Notebook CRUD, source management (URL, text, file, Google Drive, YouTube)",
+    "Studio content generation: audio podcasts, video, reports, quizzes, flashcards, infographics, slide decks, mind maps",
+    "AI-powered web/Drive research with automatic source import",
+    "Batch and cross-notebook query operations",
+    "Configurable pipelines for multi-step workflows",
+    "Tag and smart-select system for notebook organization",
+    "Automatic MCP server configuration via `nlm setup` for Claude, Gemini, Cursor, Windsurf, and more",
+    "AI skill installation for Cline, Codex, Gemini CLI, Claude Code, and other agents",
+    "WSL2 authentication support with Windows Chrome integration"
+  ],
+  "publicApiSurface": [
+    "nlm login / nlm login --profile / nlm login switch",
+    "nlm notebook list/create/get/describe/rename/delete/query",
+    "nlm source list/add/get/describe/stale/sync/delete",
+    "nlm audio/video/report/quiz/flashcards/mindmap/slides/infographic/data-table create",
+    "nlm studio status/delete",
+    "nlm slides revise",
+    "nlm download audio/video/report/mind-map/slide-deck/infographic/data-table/quiz/flashcards",
+    "nlm research start/status/import",
+    "nlm share status/public/private/invite",
+    "nlm batch query/add-source/create/delete/studio",
+    "nlm cross query",
+    "nlm pipeline list/run",
+    "nlm tag add/remove/list/select",
+    "nlm chat configure",
+    "nlm alias set/list/get/delete",
+    "nlm config show/get/set",
+    "nlm setup add/remove/list",
+    "nlm skill install/update/uninstall/list/show",
+    "nlm doctor",
+    "notebook_list / notebook_create / notebook_get / notebook_describe / notebook_rename / notebook_delete",
+    "source_add / source_list_drive / source_sync_drive / source_delete / source_describe / source_get_content",
+    "notebook_query / chat_configure",
+    "studio_create / studio_status / studio_delete / studio_revise",
+    "download_artifact",
+    "export_artifact",
+    "research_start / research_status / research_import",
+    "note (action: list/create/update/delete)",
+    "notebook_share_status / notebook_share_public / notebook_share_invite",
+    "refresh_auth / save_auth_tokens",
+    "server_info",
+    "batch / cross_notebook_query",
+    "pipeline",
+    "tag"
+  ]
+}

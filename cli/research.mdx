@@ -1,0 +1,208 @@
+---
+title: "Research Commands — NotebookLM CLI Reference"
+sidebarTitle: "Research"
+description: "Discover and import sources automatically using NotebookLM's AI-powered web and Google Drive research tasks."
+---
+
+The research commands let NotebookLM search the web or your Google Drive on your behalf, find sources relevant to a query, and import the results directly into a notebook. This is useful for building source libraries quickly without manually hunting for articles or documents.
+
+Research tasks run asynchronously on NotebookLM's servers. You start a task, optionally poll for its status, then import the discovered sources when it finishes — or use `--auto-import` to have the CLI do all three steps for you automatically.
+
+The CLI supports two command styles:
+
+```bash
+# Noun-first
+nlm research start "large language model safety" --notebook-id <id>
+
+# Verb-first
+nlm start research "large language model safety" --notebook-id <id>
+```
+
+---
+
+## Commands
+
+### `research start`
+
+Kick off a research task. NotebookLM searches the web (or your Drive) and returns a set of relevant sources.
+
+```bash
+nlm research start "query" --notebook-id <notebook-id>
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--notebook-id` | `-n` | | Target notebook ID or alias (required, or use `--title`) |
+| `--title` | `-t` | | Create a new notebook with this title and research into it |
+| `--mode` | `-m` | `fast` | Research depth: `fast` (~30 s, ~10 sources) or `deep` (~5 min, ~40 sources, web only) |
+| `--source` | `-s` | `web` | Where to search: `web` or `drive` |
+| `--auto-import` | | | Start, poll, and import discovered sources in one step |
+| `--force` | `-f` | | Start new research even if a task is already pending |
+| `--profile` | `-p` | | Profile to use |
+
+<Tip>
+Use `--auto-import` to run the entire research workflow in a single command. The CLI will start the task, wait for it to finish, and immediately import all discovered sources into the notebook — no separate `status` or `import` calls needed.
+</Tip>
+
+<CodeGroup>
+```bash Fast Web Research
+# Quick web search (~30 seconds, ~10 sources)
+nlm research start "transformer architecture breakthroughs 2024" \
+  --notebook-id <notebook-id> \
+  --mode fast
+```
+
+```bash Deep Web Research
+# Extended research (~5 minutes, ~40 sources)
+nlm research start "regulatory landscape for AI in healthcare" \
+  --notebook-id <notebook-id> \
+  --mode deep
+```
+
+```bash Google Drive Search
+# Search your own Google Drive documents
+nlm research start "Q3 sales performance" \
+  --notebook-id <notebook-id> \
+  --source drive
+```
+
+```bash Auto Import (One Step)
+# Start, poll, and import — all in one command
+nlm research start "climate policy 2025" \
+  --notebook-id <notebook-id> \
+  --mode fast \
+  --auto-import
+```
+
+```bash New Notebook
+# Create a new notebook and research into it
+nlm research start "quantum computing hardware advances" \
+  --title "Quantum Computing Research" \
+  --mode deep
+```
+</CodeGroup>
+
+---
+
+### `research status`
+
+Check the status of a running or completed research task. By default this polls until the task completes or times out.
+
+```bash
+nlm research status <notebook-id>
+nlm research status <notebook-id> --max-wait 600
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--task-id` | `-t` | | Specific task ID to check (auto-detects if omitted) |
+| `--max-wait` | | `300` | Max seconds to poll (set to `0` for a single status check) |
+| `--poll-interval` | | `30` | Seconds between status checks |
+| `--compact/--full` | | `--compact` | Show compact or full details including source list |
+| `--profile` | `-p` | | Profile to use |
+
+```bash
+# Single check — do not poll
+nlm research status <notebook-id> --max-wait 0
+
+# Poll for up to 10 minutes (useful for deep research)
+nlm research status <notebook-id> --max-wait 600
+
+# Show full details including discovered source titles
+nlm research status <notebook-id> --full
+```
+
+---
+
+### `research import`
+
+Import the sources discovered by a completed research task into the notebook.
+
+```bash
+nlm research import <notebook-id> <task-id>
+nlm research import <notebook-id>              # auto-detects the task ID
+```
+
+**Flags**
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--timeout` | `-t` | `300` | Import timeout in seconds |
+| `--cited-only` | | | Import only sources cited by the research report (deep mode) |
+| `--indices` | `-i` | | Comma-separated indices of sources to import (default: all) |
+| `--profile` | `-p` | | Profile to use |
+
+<CodeGroup>
+```bash Import All Sources
+nlm research import <notebook-id> <task-id>
+```
+
+```bash Cited Sources Only
+# For deep-mode research, import only the sources the report cited
+nlm research import <notebook-id> <task-id> --cited-only
+```
+
+```bash Custom Timeout
+# Long import timeout for large source sets
+nlm research import <notebook-id> <task-id> --timeout 600
+```
+
+```bash Select Specific Sources
+# Import only the first three discovered sources (0-indexed)
+nlm research import <notebook-id> <task-id> --indices "0,1,2"
+```
+</CodeGroup>
+
+---
+
+## End-to-end research workflow
+
+<Steps>
+  <Step title="Start research">
+    ```bash
+    nlm research start "EU AI Act compliance requirements" \
+      --notebook-id <notebook-id> \
+      --mode deep
+    # → Task ID: task-abc123
+    # → Estimated time: ~5 minutes
+    ```
+  </Step>
+  <Step title="Poll until complete">
+    ```bash
+    # Poll with a 10-minute budget (suitable for deep mode)
+    nlm research status <notebook-id> --max-wait 600
+    # → Status: completed
+    # → Sources found: 38
+    ```
+  </Step>
+  <Step title="Import discovered sources">
+    ```bash
+    # Import only the sources the report cited
+    nlm research import <notebook-id> task-abc123 --cited-only
+    # → Imported 12 sources
+    ```
+  </Step>
+  <Step title="Query the newly populated notebook">
+    ```bash
+    nlm notebook query <notebook-id> \
+      "What are the key compliance deadlines in the EU AI Act?"
+    ```
+  </Step>
+</Steps>
+
+### Automated one-liner
+
+For fast research, `--auto-import` collapses the entire workflow into a single command:
+
+```bash
+nlm research start "foundation model evaluation benchmarks" \
+  --notebook-id <notebook-id> \
+  --mode fast \
+  --auto-import
+```
+
+The CLI will start the task, wait for completion (up to 2 minutes for fast mode, 10 minutes for deep), and import all sources automatically.

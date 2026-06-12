@@ -1,0 +1,1013 @@
+---
+title: "NotebookLM MCP Tools: Complete Reference Guide"
+sidebarTitle: "Tools"
+description: "Full reference for all 35 NotebookLM MCP tools — parameters, types, and example calls organized by category."
+---
+
+The NotebookLM MCP server registers **35 tools** that any MCP-compatible AI assistant can call on your behalf. This page documents every tool: what it does, the parameters it accepts, and a usage example. Tools are organized by category — use the accordions below to explore each group. For setup instructions, see the [MCP Overview](/mcp/overview).
+
+<Info>
+  Several tools are **unified** — a single tool that handles multiple related operations via a `source_type`, `artifact_type`, or `action` parameter. Prefer these over chaining multiple single-purpose calls; they save context and reduce round-trips.
+</Info>
+
+## Notebooks
+
+<Accordion title="notebook_list — List all notebooks">
+  List all NotebookLM notebooks in your account.
+
+  <ParamField query="max_results" type="integer" default="100">
+    Maximum number of notebooks to return.
+  </ParamField>
+
+  ```python
+  notebook_list()
+  notebook_list(max_results=50)
+  ```
+</Accordion>
+
+<Accordion title="notebook_create — Create a notebook">
+  Create a new, empty notebook.
+
+  <ParamField body="title" type="string">
+    Optional display title for the new notebook.
+  </ParamField>
+
+  ```python
+  notebook_create(title="AI Strategy Research")
+  ```
+</Accordion>
+
+<Accordion title="notebook_get — Get notebook details and sources">
+  Retrieve full details for a notebook, including its ID, title, URL, source count, and a list of all sources.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  ```python
+  notebook_get(notebook_id="abc123")
+  ```
+</Accordion>
+
+<Accordion title="notebook_describe — AI summary and suggested topics">
+  Ask NotebookLM to generate an AI-written summary of the notebook's contents and return a list of suggested discussion topics.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  Returns `summary` (markdown) and `suggested_topics` (list of strings).
+
+  ```python
+  notebook_describe(notebook_id="abc123")
+  ```
+</Accordion>
+
+<Accordion title="notebook_rename — Rename a notebook">
+  Change the display title of an existing notebook.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="new_title" type="string" required>
+    New display title.
+  </ParamField>
+
+  ```python
+  notebook_rename(notebook_id="abc123", new_title="Q3 Competitive Research")
+  ```
+</Accordion>
+
+<Accordion title="notebook_delete — Delete a notebook (irreversible)">
+  Permanently delete a notebook and all its contents. This action **cannot be undone**. The AI must ask the user to confirm before setting `confirm=True`.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after explicit user approval. The tool returns an error if this is `False`.
+  </ParamField>
+
+  ```python
+  notebook_delete(notebook_id="abc123", confirm=True)
+  ```
+</Accordion>
+
+---
+
+## Sources
+
+<Accordion title="source_add — Add a source (unified)">
+  Add any type of source to a notebook. This single tool replaces separate URL, text, file, and Drive add operations.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="source_type" type="string" required>
+    Type of source: `url`, `text`, `file`, or `drive`.
+  </ParamField>
+
+  <ParamField body="url" type="string">
+    Web page or YouTube URL. Used when `source_type=url`.
+  </ParamField>
+
+  <ParamField body="urls" type="array">
+    List of URLs to add in bulk. Alternative to `url` for batch URL imports.
+  </ParamField>
+
+  <ParamField body="text" type="string">
+    Raw text content to paste as a source. Used when `source_type=text`.
+  </ParamField>
+
+  <ParamField body="title" type="string">
+    Optional display title (primarily for text sources).
+  </ParamField>
+
+  <ParamField body="file_path" type="string">
+    Absolute path to a local file. Used when `source_type=file`. Supported formats: PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP.
+  </ParamField>
+
+  <ParamField body="document_id" type="string">
+    Google Drive document ID. Used when `source_type=drive`.
+  </ParamField>
+
+  <ParamField body="doc_type" type="string" default="doc">
+    Drive document type: `doc`, `slides`, `sheets`, or `pdf`. Only used when `source_type=drive`.
+  </ParamField>
+
+  <ParamField body="wait" type="boolean" default="false">
+    If `True`, block until the source finishes processing before returning.
+  </ParamField>
+
+  <ParamField body="wait_timeout" type="number" default="120.0">
+    Maximum seconds to wait when `wait=True`.
+  </ParamField>
+
+  ```python
+  # Add a URL
+  source_add(notebook_id="abc123", source_type="url", url="https://example.com/article")
+
+  # Add multiple URLs at once
+  source_add(notebook_id="abc123", source_type="url", urls=["https://a.com", "https://b.com"])
+
+  # Add a URL and wait for processing to complete
+  source_add(notebook_id="abc123", source_type="url", url="https://example.com", wait=True)
+
+  # Add pasted text
+  source_add(notebook_id="abc123", source_type="text", text="Key findings from the meeting...", title="Meeting Notes")
+
+  # Upload a local PDF
+  source_add(notebook_id="abc123", source_type="file", file_path="/home/user/report.pdf", wait=True)
+
+  # Add a Google Drive document
+  source_add(notebook_id="abc123", source_type="drive", document_id="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms", doc_type="doc")
+  ```
+</Accordion>
+
+<Accordion title="source_list_drive — List sources with Drive freshness">
+  List all sources in a notebook and their Drive sync status (fresh or stale). Call this before `source_sync_drive` to identify which sources need updating.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  ```python
+  source_list_drive(notebook_id="abc123")
+  ```
+</Accordion>
+
+<Accordion title="source_sync_drive — Sync stale Drive sources">
+  Re-sync one or more Google Drive sources so they reflect the latest document content. Call `source_list_drive` first to get the IDs of stale sources.
+
+  <ParamField body="source_ids" type="array" required>
+    List of source UUIDs to sync.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after user approval.
+  </ParamField>
+
+  ```python
+  source_sync_drive(source_ids=["src_uuid_1", "src_uuid_2"], confirm=True)
+  ```
+</Accordion>
+
+<Accordion title="source_delete — Delete a source (irreversible)">
+  Permanently delete one or more sources. This action **cannot be undone**.
+
+  <ParamField body="source_id" type="string">
+    Single source UUID to delete.
+  </ParamField>
+
+  <ParamField body="source_ids" type="array">
+    List of source UUIDs for bulk deletion. Alternative to `source_id`.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after explicit user approval.
+  </ParamField>
+
+  ```python
+  source_delete(source_id="src_uuid_1", confirm=True)
+  source_delete(source_ids=["src_uuid_1", "src_uuid_2"], confirm=True)
+  ```
+</Accordion>
+
+<Accordion title="source_describe — AI summary and keywords">
+  Get an AI-generated summary of a source, including extracted keyword chips. Returns `summary` (markdown with **bold** keywords) and `keywords` (list).
+
+  <ParamField body="source_id" type="string" required>
+    Source UUID.
+  </ParamField>
+
+  ```python
+  source_describe(source_id="src_uuid_1")
+  ```
+</Accordion>
+
+<Accordion title="source_get_content — Raw text content">
+  Retrieve the raw indexed text of a source without any AI processing. Much faster than `notebook_query` for content export. Works for PDFs, web pages, pasted text, and YouTube transcripts.
+
+  Returns `content`, `title`, `source_type`, and `char_count`.
+
+  <ParamField body="source_id" type="string" required>
+    Source UUID.
+  </ParamField>
+
+  ```python
+  source_get_content(source_id="src_uuid_1")
+  ```
+</Accordion>
+
+---
+
+## Querying
+
+<Accordion title="notebook_query — Ask AI about notebook sources">
+  Ask the NotebookLM AI a question about the sources already in a notebook. Responses are grounded in the notebook's sources and include citations. **Note:** This tool is for querying existing content — use `research_start` to find new sources on the web or in Drive.
+
+  All queries sent through this tool automatically persist in your NotebookLM web UI chat history.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="query" type="string" required>
+    The question to ask.
+  </ParamField>
+
+  <ParamField body="source_ids" type="array">
+    Restrict the query to specific sources. Defaults to all sources.
+  </ParamField>
+
+  <ParamField body="conversation_id" type="string">
+    Pass the `conversation_id` from a previous response to ask follow-up questions in the same thread.
+  </ParamField>
+
+  <ParamField body="timeout" type="number" default="120.0">
+    Request timeout in seconds. Overrides `NOTEBOOKLM_QUERY_TIMEOUT` env var.
+  </ParamField>
+
+  ```python
+  # Basic query
+  notebook_query(notebook_id="abc123", query="What are the three most important takeaways?")
+
+  # Follow-up in the same conversation
+  notebook_query(notebook_id="abc123", query="Can you expand on point two?", conversation_id="conv_xyz")
+
+  # Query specific sources only
+  notebook_query(notebook_id="abc123", query="What does this source say about security?", source_ids=["src_1", "src_2"])
+  ```
+</Accordion>
+
+<Accordion title="chat_configure — Configure chat behavior">
+  Set the AI chat goal and response length for a notebook. Changes affect all future `notebook_query` calls on that notebook.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="goal" type="string" default="default">
+    Chat goal preset: `default`, `learning_guide`, or `custom`.
+  </ParamField>
+
+  <ParamField body="custom_prompt" type="string">
+    Custom system instructions. Required when `goal=custom`. Maximum 10,000 characters.
+  </ParamField>
+
+  <ParamField body="response_length" type="string" default="default">
+    Desired response length: `default`, `longer`, or `shorter`.
+  </ParamField>
+
+  ```python
+  chat_configure(notebook_id="abc123", goal="learning_guide", response_length="longer")
+  chat_configure(notebook_id="abc123", goal="custom", custom_prompt="Always respond in bullet points.")
+  ```
+</Accordion>
+
+---
+
+## Studio
+
+<Accordion title="studio_create — Create any artifact (unified)">
+  Create any type of NotebookLM studio artifact. This is the unified creation tool that replaces nine separate create operations. Requires user confirmation before proceeding.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="artifact_type" type="string" required>
+    Type of artifact to create. One of: `audio`, `video`, `report`, `quiz`, `flashcards`, `mind_map`, `slide_deck`, `infographic`, `data_table`.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after user approval. Without confirmation the tool returns a preview of the settings.
+  </ParamField>
+
+  <ParamField body="source_ids" type="array">
+    Source IDs to include. Defaults to all sources in the notebook.
+  </ParamField>
+
+  **Audio options** (`artifact_type=audio`):
+
+  <ParamField body="audio_format" type="string" default="deep_dive">
+    `deep_dive`, `brief`, `critique`, or `debate`.
+  </ParamField>
+
+  <ParamField body="audio_length" type="string" default="default">
+    `short`, `default`, or `long`.
+  </ParamField>
+
+  **Video options** (`artifact_type=video`):
+
+  <ParamField body="video_format" type="string" default="explainer">
+    `explainer`, `brief`, or `cinematic`.
+  </ParamField>
+
+  <ParamField body="visual_style" type="string" default="auto_select">
+    `auto_select`, `custom`, `classic`, `whiteboard`, `kawaii`, `anime`, `watercolor`, `retro_print`, `heritage`, or `paper_craft`.
+  </ParamField>
+
+  <ParamField body="video_style_prompt" type="string">
+    Custom style description when `visual_style=custom`.
+  </ParamField>
+
+  **Infographic options** (`artifact_type=infographic`):
+
+  <ParamField body="orientation" type="string" default="landscape">
+    `landscape`, `portrait`, or `square`.
+  </ParamField>
+
+  <ParamField body="detail_level" type="string" default="standard">
+    `concise`, `standard`, or `detailed`.
+  </ParamField>
+
+  <ParamField body="infographic_style" type="string" default="auto_select">
+    `auto_select`, `sketch_note`, `professional`, `bento_grid`, `editorial`, `instructional`, `bricks`, `clay`, `anime`, `kawaii`, or `scientific`.
+  </ParamField>
+
+  **Slide deck options** (`artifact_type=slide_deck`):
+
+  <ParamField body="slide_format" type="string" default="detailed_deck">
+    `detailed_deck` or `presenter_slides`.
+  </ParamField>
+
+  <ParamField body="slide_length" type="string" default="default">
+    `short` or `default`.
+  </ParamField>
+
+  **Report options** (`artifact_type=report`):
+
+  <ParamField body="report_format" type="string" default="Briefing Doc">
+    `Briefing Doc`, `Study Guide`, `Blog Post`, or `Create Your Own`.
+  </ParamField>
+
+  <ParamField body="custom_prompt" type="string">
+    Custom instructions. Used when `report_format=Create Your Own`.
+  </ParamField>
+
+  **Quiz options** (`artifact_type=quiz`):
+
+  <ParamField body="question_count" type="integer" default="2">
+    Number of questions to generate.
+  </ParamField>
+
+  **Shared options** (most artifact types):
+
+  <ParamField body="difficulty" type="string" default="medium">
+    For `flashcards` and `quiz`: `easy`, `medium`, or `hard`.
+  </ParamField>
+
+  <ParamField body="language" type="string">
+    BCP-47 language code (e.g. `en`, `es`, `fr`, `de`, `ja`). Defaults to `NOTEBOOKLM_HL` env var or `en`.
+  </ParamField>
+
+  <ParamField body="focus_prompt" type="string">
+    Optional free-text focus instruction applied to all artifact types.
+  </ParamField>
+
+  ```python
+  # Audio podcast (deep dive format)
+  studio_create(notebook_id="abc123", artifact_type="audio", audio_format="deep_dive", confirm=True)
+
+  # Video with cinematic style
+  studio_create(notebook_id="abc123", artifact_type="video", video_format="cinematic", visual_style="watercolor", confirm=True)
+
+  # Briefing doc report
+  studio_create(notebook_id="abc123", artifact_type="report", report_format="Briefing Doc", confirm=True)
+
+  # Study quiz with 10 questions
+  studio_create(notebook_id="abc123", artifact_type="quiz", question_count=10, difficulty="hard", confirm=True)
+
+  # Flashcards
+  studio_create(notebook_id="abc123", artifact_type="flashcards", difficulty="medium", confirm=True)
+
+  # Professional infographic
+  studio_create(notebook_id="abc123", artifact_type="infographic", orientation="landscape", infographic_style="professional", confirm=True)
+
+  # Slide deck
+  studio_create(notebook_id="abc123", artifact_type="slide_deck", slide_format="detailed_deck", confirm=True)
+  ```
+
+  <Note>
+    After calling `studio_create`, poll `studio_status` until the artifact's status shows `completed`. Generation typically takes 1–5 minutes depending on artifact type.
+  </Note>
+</Accordion>
+
+<Accordion title="studio_status — Check generation progress">
+  Check the status of all studio artifacts in a notebook. Also supports renaming an artifact or listing all supported artifact types.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="action" type="string" default="status">
+    `status` (default), `rename`, or `list_types`.
+  </ParamField>
+
+  <ParamField body="artifact_id" type="string">
+    Required when `action=rename`.
+  </ParamField>
+
+  <ParamField body="new_title" type="string">
+    Required when `action=rename`.
+  </ParamField>
+
+  Returns `artifacts` list (each with `artifact_id`, `title`, `type`, `status`, and `url`) and a `summary` with counts.
+
+  ```python
+  # Poll until all artifacts are completed
+  studio_status(notebook_id="abc123")
+
+  # Rename an artifact
+  studio_status(notebook_id="abc123", action="rename", artifact_id="art_xyz", new_title="Weekly Podcast Ep 12")
+
+  # List all artifact types and their options
+  studio_status(notebook_id="abc123", action="list_types")
+  ```
+</Accordion>
+
+<Accordion title="studio_delete — Delete an artifact (irreversible)">
+  Permanently delete a studio artifact. Call `studio_status` first to list artifact IDs.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="artifact_id" type="string" required>
+    Artifact UUID (from `studio_status`).
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after explicit user approval.
+  </ParamField>
+
+  ```python
+  studio_delete(notebook_id="abc123", artifact_id="art_xyz", confirm=True)
+  ```
+</Accordion>
+
+<Accordion title="studio_revise — Revise slides in a slide deck">
+  Apply targeted revisions to individual slides in an existing slide deck. Creates a **new** artifact — the original is not modified. Only slide decks support revision. Poll `studio_status` after calling to wait for the new deck.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="artifact_id" type="string" required>
+    UUID of the existing slide deck to revise (from `studio_status`).
+  </ParamField>
+
+  <ParamField body="slide_instructions" type="array" required>
+    List of revision instructions. Each item must have a `slide` (1-based slide number) and `instruction` (description of the change).
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` after user approval.
+  </ParamField>
+
+  ```python
+  studio_revise(
+      notebook_id="abc123",
+      artifact_id="art_xyz",
+      slide_instructions=[
+          {"slide": 1, "instruction": "Make the title larger and bolder"},
+          {"slide": 3, "instruction": "Replace the bullet list with a comparison table"}
+      ],
+      confirm=True
+  )
+  ```
+</Accordion>
+
+---
+
+## Downloads
+
+<Accordion title="download_artifact — Download any artifact (unified)">
+  Download a completed studio artifact to a local file. This unified tool replaces nine separate download commands. Ensure `studio_status` shows `completed` before downloading.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="artifact_type" type="string" required>
+    Type of artifact: `audio`, `video`, `report`, `mind_map`, `slide_deck`, `infographic`, `data_table`, `quiz`, or `flashcards`.
+  </ParamField>
+
+  <ParamField body="output_path" type="string" required>
+    Local file path where the artifact should be saved (e.g. `podcast.mp3`, `slides.pdf`).
+  </ParamField>
+
+  <ParamField body="artifact_id" type="string">
+    Specific artifact UUID. Uses the most recent completed artifact of `artifact_type` if not provided.
+  </ParamField>
+
+  <ParamField body="output_format" type="string" default="json">
+    For `quiz` and `flashcards` only: `json`, `markdown`, or `html`.
+  </ParamField>
+
+  <ParamField body="slide_deck_format" type="string" default="pdf">
+    For `slide_deck` only: `pdf` or `pptx`.
+  </ParamField>
+
+  ```python
+  # Download audio podcast
+  download_artifact(notebook_id="abc123", artifact_type="audio", output_path="podcast.mp3")
+
+  # Download slide deck as PowerPoint
+  download_artifact(notebook_id="abc123", artifact_type="slide_deck", output_path="slides.pptx", slide_deck_format="pptx")
+
+  # Download quiz as HTML
+  download_artifact(notebook_id="abc123", artifact_type="quiz", output_path="quiz.html", output_format="html")
+
+  # Download a specific artifact by ID
+  download_artifact(notebook_id="abc123", artifact_type="video", artifact_id="art_xyz", output_path="overview.mp4")
+  ```
+</Accordion>
+
+---
+
+## Exports
+
+<Accordion title="export_artifact — Export to Google Docs or Sheets">
+  Export a completed studio artifact to Google Docs or Google Sheets. Useful for reports, data tables, and other text-based artifacts.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="artifact_id" type="string" required>
+    Artifact UUID (from `studio_status`).
+  </ParamField>
+
+  <ParamField body="export_type" type="string" required>
+    Destination format: `google_docs` or `google_sheets`.
+  </ParamField>
+
+  ```python
+  export_artifact(notebook_id="abc123", artifact_id="art_xyz", export_type="google_docs")
+  ```
+</Accordion>
+
+---
+
+## Research
+
+<Accordion title="research_start — Start web or Drive research">
+  Launch a research task that searches the web or your Google Drive for sources relevant to a query. Returns immediately with a `task_id`. Poll `research_status` to wait for results, then call `research_import` to add the discovered sources to the notebook.
+
+  <ParamField body="query" type="string" required>
+    What to search for (e.g. `"quantum computing breakthroughs 2025"`).
+  </ParamField>
+
+  <ParamField body="source" type="string" default="web">
+    Where to search: `web` or `drive`.
+  </ParamField>
+
+  <ParamField body="mode" type="string" default="fast">
+    Research depth: `fast` (~30 seconds, ~10 sources) or `deep` (~5 minutes, ~40 sources, web only).
+  </ParamField>
+
+  <ParamField body="notebook_id" type="string">
+    Existing notebook to attach results to. Creates a new notebook if not provided (requires `title`).
+  </ParamField>
+
+  <ParamField body="title" type="string">
+    Title for the new notebook to create. Used when `notebook_id` is not provided.
+  </ParamField>
+
+  ```python
+  # Start deep web research
+  research_start(query="enterprise AI ROI metrics", mode="deep", notebook_id="abc123")
+
+  # Fast research with auto-created notebook
+  research_start(query="cloud marketplace trends", mode="fast", title="Cloud Research")
+  ```
+</Accordion>
+
+<Accordion title="research_status — Poll research progress">
+  Block until a research task completes or the timeout is reached. Returns a summary report and list of discovered sources.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="max_wait" type="integer" default="300">
+    Maximum seconds to wait. Set to `0` for a single non-blocking poll.
+  </ParamField>
+
+  <ParamField body="poll_interval" type="integer" default="30">
+    Seconds between status checks.
+  </ParamField>
+
+  <ParamField body="task_id" type="string">
+    Specific task ID to poll (from `research_start`).
+  </ParamField>
+
+  <ParamField body="query" type="string">
+    Optional query string for fallback task matching when `task_id` is unavailable (deep research).
+  </ParamField>
+
+  <ParamField body="compact" type="boolean" default="true">
+    Truncate the report and limit sources shown to save tokens. Set to `False` for full details.
+  </ParamField>
+
+  ```python
+  research_status(notebook_id="abc123", max_wait=300)
+  research_status(notebook_id="abc123", task_id="task_xyz", max_wait=600, compact=False)
+  ```
+</Accordion>
+
+<Accordion title="research_import — Import discovered sources">
+  Import sources discovered by a completed research task into the notebook. Call after `research_status` returns `status="completed"`.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="task_id" type="string" required>
+    Research task ID (from `research_start` or `research_status`).
+  </ParamField>
+
+  <ParamField body="cited_only" type="boolean" default="false">
+    If `True`, import only the sources that were actually cited in the research report. Overrides `source_indices`.
+  </ParamField>
+
+  <ParamField body="source_indices" type="array">
+    Specific source indices to import. Defaults to all discovered sources. Ignored when `cited_only=True`.
+  </ParamField>
+
+  <ParamField body="timeout" type="number" default="300.0">
+    Import timeout in seconds. Increase for large notebooks.
+  </ParamField>
+
+  ```python
+  # Import only cited sources (recommended for quality filtering)
+  research_import(notebook_id="abc123", task_id="task_xyz", cited_only=True)
+
+  # Import all discovered sources
+  research_import(notebook_id="abc123", task_id="task_xyz", timeout=600)
+
+  # Import specific sources by index
+  research_import(notebook_id="abc123", task_id="task_xyz", source_indices=[0, 1, 2, 5])
+  ```
+</Accordion>
+
+---
+
+## Notes
+
+<Accordion title="note — Manage notes (unified)">
+  Create, list, update, and delete notes in a notebook. All note operations go through this single unified tool.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="action" type="string" required>
+    Operation to perform: `create`, `list`, `update`, or `delete`.
+  </ParamField>
+
+  <ParamField body="note_id" type="string">
+    Note UUID. Required for `update` and `delete`.
+  </ParamField>
+
+  <ParamField body="content" type="string">
+    Note body text. Required for `create`, optional for `update`.
+  </ParamField>
+
+  <ParamField body="title" type="string">
+    Note display title. Optional for `create` and `update`.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Must be `True` for `action=delete`.
+  </ParamField>
+
+  ```python
+  note(notebook_id="abc123", action="list")
+  note(notebook_id="abc123", action="create", content="Key insight from today's meeting.", title="Meeting Insight")
+  note(notebook_id="abc123", action="update", note_id="note_xyz", content="Updated insight text.")
+  note(notebook_id="abc123", action="delete", note_id="note_xyz", confirm=True)
+  ```
+</Accordion>
+
+---
+
+## Sharing
+
+<Accordion title="notebook_share_status — Get sharing settings">
+  Retrieve the current sharing configuration for a notebook, including whether it is public, the access level, the public link (if any), and the list of collaborators.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  ```python
+  notebook_share_status(notebook_id="abc123")
+  ```
+</Accordion>
+
+<Accordion title="notebook_share_public — Enable or disable public link">
+  Toggle public link access for a notebook. When enabled, anyone with the link can view the notebook.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="is_public" type="boolean" default="true">
+    `True` to enable a public link, `False` to disable it.
+  </ParamField>
+
+  ```python
+  notebook_share_public(notebook_id="abc123", is_public=True)   # Enable
+  notebook_share_public(notebook_id="abc123", is_public=False)  # Disable
+  ```
+</Accordion>
+
+<Accordion title="notebook_share_invite — Invite a collaborator">
+  Invite someone to collaborate on a notebook by email address.
+
+  <ParamField body="notebook_id" type="string" required>
+    Notebook UUID.
+  </ParamField>
+
+  <ParamField body="email" type="string" required>
+    Email address of the person to invite.
+  </ParamField>
+
+  <ParamField body="role" type="string" default="viewer">
+    Collaboration role: `viewer` or `editor`.
+  </ParamField>
+
+  ```python
+  notebook_share_invite(notebook_id="abc123", email="colleague@example.com", role="editor")
+  ```
+</Accordion>
+
+---
+
+## Auth
+
+<Accordion title="refresh_auth — Reload auth tokens">
+  Reload authentication tokens from disk. Call this after running `nlm login` in a terminal so the MCP server picks up the fresh cookies without a restart. Also attempts headless browser re-authentication if a saved Chrome profile exists.
+
+  ```python
+  refresh_auth()
+  ```
+
+  <Warning>
+    `refresh_auth()` reloads tokens from disk but **cannot revive expired credentials**. If your Google session has fully expired, run `nlm login` in a terminal first.
+  </Warning>
+</Accordion>
+
+<Accordion title="save_auth_tokens — Save cookies manually (fallback)">
+  Save NotebookLM cookies directly from a browser cookie header. This is a **fallback method** — prefer `nlm login` (automated CLI) first.
+
+  <ParamField body="cookies" type="string" required>
+    Cookie header string copied from Chrome DevTools Network tab.
+  </ParamField>
+
+  <ParamField body="request_body" type="string">
+    Optional raw POST body from a NotebookLM network request. Used to auto-extract the CSRF token.
+  </ParamField>
+
+  <ParamField body="request_url" type="string">
+    Optional request URL from a NotebookLM network request. Used to auto-extract the session ID and build label.
+  </ParamField>
+
+  ```python
+  save_auth_tokens(
+      cookies="SID=xxx; HSID=xxx; SSID=xxx; APISID=xxx; SAPISID=xxx; ...",
+      request_body="at=ABC123&...",
+      request_url="https://notebooklm.google.com/...?f.sid=XYZ&bl=ABC..."
+  )
+  ```
+</Accordion>
+
+---
+
+## Server
+
+<Accordion title="server_info — Version and auth status">
+  Return the currently installed version, the latest version on PyPI, whether an update is available, and the current authentication status. The AI assistant will suggest updating if `update_available` is `True`.
+
+  ```python
+  server_info()
+  ```
+
+  Returns:
+  - `version` — installed version string
+  - `latest_version` — latest PyPI version (or `null` if check failed)
+  - `update_available` — `true` if a newer version exists
+  - `auth_status` — `configured`, `stale`, `unverified`, `not_configured`, or `error`
+  - `update_command` — `uv tool upgrade notebooklm-mcp-cli`
+</Accordion>
+
+---
+
+## Batch & Cross-Notebook
+
+<Accordion title="batch — Batch operations across notebooks">
+  Perform the same operation across multiple notebooks at once. Target notebooks by name, by tag, or by using `all=True` for all notebooks.
+
+  <ParamField body="action" type="string" required>
+    Operation to perform: `query`, `add_source`, `create`, `delete`, or `studio`.
+  </ParamField>
+
+  <ParamField body="notebook_names" type="string">
+    Comma-separated notebook names or IDs to target.
+  </ParamField>
+
+  <ParamField body="tags" type="string">
+    Comma-separated tags to select target notebooks.
+  </ParamField>
+
+  <ParamField body="all" type="boolean" default="false">
+    Apply the action to all notebooks.
+  </ParamField>
+
+  <ParamField body="query" type="string">
+    Question to ask each notebook. Required for `action=query`.
+  </ParamField>
+
+  <ParamField body="source_url" type="string">
+    URL to add to each notebook. Required for `action=add_source`.
+  </ParamField>
+
+  <ParamField body="titles" type="string">
+    Comma-separated titles for new notebooks. Required for `action=create`.
+  </ParamField>
+
+  <ParamField body="artifact_type" type="string" default="audio">
+    Artifact type for `action=studio`: `audio`, `video`, `report`, etc.
+  </ParamField>
+
+  <ParamField body="confirm" type="boolean" default="false">
+    Required for `action=delete`. Must be `True` after user approval.
+  </ParamField>
+
+  ```python
+  # Query multiple notebooks
+  batch(action="query", query="What are the key findings?", notebook_names="AI Research, Dev Tools")
+
+  # Add the same URL to all tagged notebooks
+  batch(action="add_source", source_url="https://example.com/report", tags="ai,research")
+
+  # Create three notebooks at once
+  batch(action="create", titles="Project A, Project B, Project C")
+
+  # Delete notebooks by name (requires confirm)
+  batch(action="delete", notebook_names="Old Draft, Temp Notes", confirm=True)
+
+  # Generate audio podcasts for all tagged notebooks
+  batch(action="studio", artifact_type="audio", tags="research", confirm=True)
+  ```
+</Accordion>
+
+<Accordion title="cross_notebook_query — Aggregated query across notebooks">
+  Ask the same question across multiple notebooks and receive aggregated answers with per-notebook citations. Useful for synthesis and comparison tasks.
+
+  <ParamField body="query" type="string" required>
+    Question to ask across all targeted notebooks.
+  </ParamField>
+
+  <ParamField body="notebook_names" type="string">
+    Comma-separated notebook names or IDs.
+  </ParamField>
+
+  <ParamField body="tags" type="string">
+    Comma-separated tags to select target notebooks.
+  </ParamField>
+
+  <ParamField body="all" type="boolean" default="false">
+    Query all notebooks.
+  </ParamField>
+
+  ```python
+  cross_notebook_query(query="Compare the main approaches discussed", notebook_names="Notebook A, Notebook B")
+  cross_notebook_query(query="Summarize the main conclusions", tags="ai,research")
+  cross_notebook_query(query="What are the recurring themes?", all=True)
+  ```
+</Accordion>
+
+---
+
+## Pipelines
+
+<Accordion title="pipeline — List or run multi-step workflows">
+  Run automated multi-step workflows that chain multiple tools together. Built-in pipelines cover common end-to-end tasks.
+
+  <ParamField body="action" type="string" required>
+    `list` to see available pipelines, or `run` to execute one.
+  </ParamField>
+
+  <ParamField body="notebook_id" type="string">
+    Target notebook UUID. Required for `action=run`.
+  </ParamField>
+
+  <ParamField body="pipeline_name" type="string">
+    Name of the pipeline to run. Required for `action=run`.
+  </ParamField>
+
+  <ParamField body="input_url" type="string">
+    Input URL for the pipeline (used by `ingest-and-podcast` and `research-and-report`).
+  </ParamField>
+
+  **Built-in pipelines:**
+  - `ingest-and-podcast` — Add a URL source and generate an audio podcast
+  - `research-and-report` — Run deep research and generate a briefing doc
+  - `multi-format` — Generate audio, slide deck, and briefing doc in one pass
+
+  ```python
+  # List available pipelines
+  pipeline(action="list")
+
+  # Run ingest-and-podcast end-to-end
+  pipeline(action="run", notebook_id="abc123", pipeline_name="ingest-and-podcast", input_url="https://example.com/article")
+
+  # Run research-and-report
+  pipeline(action="run", notebook_id="abc123", pipeline_name="research-and-report", input_url="https://example.com")
+  ```
+</Accordion>
+
+---
+
+## Tags
+
+<Accordion title="tag — Tag management and smart select">
+  Add tags to notebooks for organization, list tagged notebooks, and use smart select to find notebooks relevant to a query by tag matching.
+
+  <ParamField body="action" type="string" required>
+    Operation: `add`, `remove`, `list`, or `select`.
+  </ParamField>
+
+  <ParamField body="notebook_id" type="string">
+    Notebook UUID. Required for `add` and `remove`.
+  </ParamField>
+
+  <ParamField body="tags" type="string">
+    Comma-separated tag names. Required for `add` and `remove`.
+  </ParamField>
+
+  <ParamField body="query" type="string">
+    Natural language query for smart tag matching. Used with `action=select`.
+  </ParamField>
+
+  ```python
+  # Add tags to a notebook
+  tag(action="add", notebook_id="abc123", tags="ai,research,llm")
+
+  # Remove a tag
+  tag(action="remove", notebook_id="abc123", tags="llm")
+
+  # List all tagged notebooks
+  tag(action="list")
+
+  # Find notebooks relevant to a query by tag
+  tag(action="select", query="ai research papers")
+  ```
+</Accordion>

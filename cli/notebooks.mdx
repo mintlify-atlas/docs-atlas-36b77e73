@@ -1,0 +1,251 @@
+---
+title: "Notebook Commands — NotebookLM CLI Reference"
+sidebarTitle: "Notebooks"
+description: "Create, list, query, and manage your NotebookLM notebooks from the terminal using the nlm notebook subcommands."
+---
+
+Notebooks are the top-level containers in NotebookLM — everything else (sources, studio artifacts, research tasks) lives inside one. The `nlm notebook` commands let you manage the full notebook lifecycle from creation through deletion, including an AI-powered `describe` command that summarizes what is inside a notebook and suggests follow-up topics.
+
+The CLI supports two command styles that are fully equivalent — use whichever feels more natural in your workflow:
+
+```bash
+# Noun-first (resource-oriented)
+nlm notebook create "My Research"
+
+# Verb-first (action-oriented)
+nlm create notebook "My Research"
+```
+
+---
+
+## Commands
+
+### `notebook list`
+
+List all notebooks in your account.
+
+```bash
+nlm notebook list
+nlm create notebook list   # verb-first alias
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--quiet` | `-q` | Output IDs only (one per line) |
+| `--full` | `-a` | Show all columns |
+| `--title` | `-t` | Output as `ID: Title` format |
+| `--profile` | `-p` | Profile to use |
+
+**Output format reference**
+
+| Flag | Output style | Best for |
+|------|-------------|----------|
+| *(none)* | Rich table with key columns | Human browsing |
+| `--json` | Full JSON array | Scripting / parsing |
+| `--quiet` | One ID per line | Shell piping |
+| `--full` | Table with all columns | Detailed inspection |
+| `--title` | `ID: Title` per line | Quick reference |
+
+---
+
+### `notebook create`
+
+Create a new, empty notebook.
+
+```bash
+nlm notebook create "AI Research 2025"
+nlm create notebook "AI Research 2025"   # verb-first
+```
+
+The command prints the new notebook's ID on success. Pipe it with `--quiet` or capture with `--json` for scripting.
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output result as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `notebook get`
+
+Retrieve full details for a single notebook by ID or alias.
+
+```bash
+nlm notebook get <notebook-id>
+nlm notebook get myproject          # alias resolves automatically
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `notebook describe`
+
+Ask the AI to summarise the notebook and suggest relevant topics to explore. This calls the NotebookLM AI layer — not a local operation — so it requires a valid session.
+
+```bash
+nlm notebook describe <notebook-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output as JSON |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `notebook rename`
+
+Rename a notebook in place.
+
+```bash
+nlm notebook rename <notebook-id> "New Title"
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `notebook delete`
+
+Permanently delete a notebook and all its sources and artifacts.
+
+<Warning>
+This action is **irreversible**. All sources, studio artifacts, and research tasks inside the notebook are destroyed. Always use `--confirm` in scripts to skip the interactive prompt.
+</Warning>
+
+```bash
+nlm notebook delete <notebook-id> --confirm
+```
+
+Without `--confirm` the CLI will prompt you interactively before proceeding.
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--confirm` | `-y` | Skip the confirmation prompt |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+### `notebook query`
+
+Chat with the sources inside a notebook. This is a single-turn query; for multi-turn conversations keep the conversation ID between calls.
+
+```bash
+nlm notebook query <notebook-id> "What are the main arguments?"
+nlm notebook query <notebook-id> "Follow up question" --conversation-id <conv-id>
+```
+
+**Flags**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--json` | `-j` | Output response as JSON |
+| `--conversation-id` | `-c` | Conversation ID for follow-up questions |
+| `--source-ids` | `-s` | Comma-separated source IDs to restrict the query |
+| `--timeout` | `-t` | Query timeout in seconds (default 120) |
+| `--profile` | `-p` | Profile to use |
+
+---
+
+## Scripting examples
+
+### Shell — pipe IDs with `--quiet`
+
+Use `--quiet` when you only need IDs — it outputs one ID per line with no extra formatting, making it ideal for shell piping.
+
+```bash
+# Get the first notebook ID and query it
+notebook_id=$(nlm notebook list --quiet | head -1)
+nlm notebook query "$notebook_id" "Summarize the key points"
+
+# Delete all notebooks whose titles start with "Draft" (careful!)
+nlm notebook list --quiet | while read -r id; do
+  nlm notebook delete "$id" --confirm
+done
+```
+
+### Python — parse `--json` output
+
+When you need metadata beyond just the ID (title, source count, creation time), use `--json` and parse with the standard library.
+
+```python
+import json
+import subprocess
+
+result = subprocess.run(
+    ["nlm", "notebook", "list", "--json"],
+    capture_output=True,
+    text=True,
+    check=True,
+)
+notebooks = json.loads(result.stdout)
+
+for nb in notebooks:
+    notebook_id = nb["id"]
+    title = nb.get("title", "(untitled)")
+    print(f"{notebook_id}: {title}")
+
+# Query the first notebook
+first_id = notebooks[0]["id"]
+query_result = subprocess.run(
+    ["nlm", "notebook", "query", first_id, "Summarize the key points", "--json"],
+    capture_output=True,
+    text=True,
+    check=True,
+)
+response = json.loads(query_result.stdout)
+print(response["answer"])
+```
+
+---
+
+## Complete notebook workflow
+
+<Steps>
+  <Step title="Create a notebook">
+    ```bash
+    nlm notebook create "Q3 Competitive Analysis"
+    # → Notebook ID: abc12345-...
+    ```
+  </Step>
+  <Step title="Set an alias for convenience">
+    ```bash
+    nlm alias set q3 abc12345-...
+    ```
+  </Step>
+  <Step title="Add sources">
+    ```bash
+    nlm source add q3 --url "https://example.com/report" --wait
+    nlm source add q3 --file analysis.pdf --wait
+    ```
+  </Step>
+  <Step title="Query the notebook">
+    ```bash
+    nlm notebook query q3 "What are the top three competitor differentiators?"
+    ```
+  </Step>
+  <Step title="Get an AI summary">
+    ```bash
+    nlm notebook describe q3
+    ```
+  </Step>
+</Steps>

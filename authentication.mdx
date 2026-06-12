@@ -1,0 +1,248 @@
+---
+title: "Authenticate with the NotebookLM CLI and MCP Server"
+sidebarTitle: "Authentication"
+description: "Set up cookie-based authentication for notebooklm-mcp-cli using Auto Mode (CDP) or manual File Mode, with multi-profile and enterprise support."
+---
+
+NotebookLM has no official public API, so `notebooklm-mcp-cli` authenticates by extracting browser cookies from your Google session. The tool supports two methods: **Auto Mode**, which launches a dedicated browser window and handles everything automatically using the Chrome DevTools Protocol (CDP), and **File Mode**, where you manually copy cookies from your browser's DevTools and paste them into a file. Most users should start with Auto Mode — it handles token refresh automatically and works with all supported Chromium-family browsers.
+
+**Supported browsers:** Google Chrome, Arc (macOS), Brave, Microsoft Edge, Chromium, Vivaldi, Opera.
+
+## Authenticating
+
+<Tabs>
+  <Tab title="Auto Mode (Recommended)">
+    Auto Mode launches a dedicated browser window, lets you sign in to Google, and then extracts your cookies automatically. Subsequent runs reuse the saved browser profile, so you only need to log in once.
+
+    **Prerequisites:** A supported Chromium-family browser must be installed. Close your browser completely before running (`Cmd+Q` on Mac, or quit from the taskbar on Windows/Linux).
+
+    ```bash
+    nlm login
+    ```
+
+    The CLI will:
+    1. Detect the first available supported browser (or your configured preference).
+    2. Create a dedicated browser profile isolated from your regular profile.
+    3. Launch the browser — log in with your Google account.
+    4. Extract cookies, the CSRF token, and your account email automatically.
+    5. Close the browser and confirm success.
+
+    ### Choosing a preferred browser
+
+    By default, `nlm login` picks the first available browser. To pin a specific browser:
+
+    ```bash
+    # Set a persistent preference
+    nlm config set auth.browser brave
+
+    # Or use an environment variable for a single session
+    export NLM_BROWSER=arc
+    ```
+
+    Valid values: `auto`, `chrome`, `arc`, `brave`, `edge`, `chromium`, `vivaldi`, `opera`. If the preferred browser is not installed, the tool falls back to auto-detection.
+
+    ### Increasing the DevTools timeout
+
+    If your system is slow to start the DevTools endpoint:
+
+    ```bash
+    nlm login --devtools-timeout 15
+    ```
+
+    ### Checking authentication status
+
+    ```bash
+    nlm login --check
+    ```
+  </Tab>
+  <Tab title="File Mode (Manual)">
+    File Mode lets you manually extract cookies from Chrome DevTools and provide them as a file. Use this if Auto Mode fails on your system, you are running in a headless environment, or browser extensions interfere with CDP automation.
+
+    ```bash
+    # Interactive: shows extraction instructions, then prompts for the file path
+    nlm login --manual
+
+    # Direct: provide the file path up front
+    nlm login --manual --file /path/to/cookies.txt
+    ```
+
+    ### How to extract cookies manually
+
+    1. Open Chrome and navigate to [https://notebooklm.google.com](https://notebooklm.google.com).
+    2. Make sure you are signed in to your Google account.
+    3. Press **F12** (or **Cmd+Option+I** on Mac) to open DevTools.
+    4. Click the **Network** tab.
+    5. In the filter box, type `batchexecute`.
+    6. Click on any notebook to trigger a network request.
+    7. Click a `batchexecute` request in the list.
+    8. In the right panel, scroll to **Request Headers**.
+    9. Find the line starting with `cookie:`.
+    10. Right-click the cookie **value** and select **Copy value**.
+    11. Paste the value into a text file and save it.
+
+    ### Cookie file format
+
+    The file should contain the raw cookie string copied from DevTools:
+
+    ```
+    SID=abc123...; HSID=xyz789...; SSID=...; APISID=...; SAPISID=...; __Secure-1PSID=...
+    ```
+
+    Lines beginning with `#` are treated as comments and ignored. The cookie string can span one line or multiple lines.
+
+    <Warning>
+      Copy the cookie **value**, not the full header. The value starts with `SID=...`. If you accidentally copy `cookie: SID=...` (including the header name), the import will fail with a "missing required cookies" error.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Multi-Profile Support
+
+Use multiple Google accounts by creating named profiles. Each profile gets its own isolated browser session and stored credentials, so you can be logged into several accounts simultaneously without conflicts.
+
+```bash
+# Create profiles for different accounts
+nlm login --profile work       # Log in with your work Google account
+nlm login --profile personal   # Log in with your personal Google account
+
+# List all profiles and their associated emails
+nlm login profile list
+# work:     jsmith@company.com
+# personal: jsmith@gmail.com
+
+# Switch the default profile (used when --profile is omitted)
+nlm login switch personal
+
+# Use a specific profile for a command
+nlm notebook list --profile work
+
+# Rename or delete profiles
+nlm login profile rename work company
+nlm login profile delete old-profile
+```
+
+Credentials for each profile are stored at:
+
+```
+~/.notebooklm-mcp-cli/profiles/<name>/auth.json
+```
+
+The corresponding browser session is stored at:
+
+```
+~/.notebooklm-mcp-cli/chrome-profiles/<name>/
+```
+
+## Token Expiration and Auto-Refresh
+
+| Component | Typical Duration | How It Refreshes |
+|---|---|---|
+| Cookies | ~2–4 weeks | Auto-refreshed via headless browser if profile is saved |
+| CSRF Token | Minutes | Auto-refreshed on every request failure |
+| Session ID | Per MCP session | Auto-extracted on MCP server start |
+
+From v0.1.9 onwards the server handles expiration automatically: it refreshes CSRF tokens immediately on failure, reloads cookies from disk if updated externally, and runs a headless browser re-auth if your profile has a saved login. If automatic refresh fails (your full Google session has expired), run `nlm login` again.
+
+## Understanding `auth_status`
+
+Both `nlm login --check` and the MCP `server_info` tool report one of five status values. Understanding the difference between `stale` and `unverified` matters — they require different responses.
+
+| Status | Meaning | Action |
+|---|---|---|
+| `configured` | Live check passed. Credentials are valid. | Nothing required. |
+| `not_configured` | No credentials stored — first-time setup. | Run `nlm login`. |
+| `stale` | Credentials are known-bad: the live check was redirected to `accounts.google.com`, the profile failed to load, or the last successful validation is older than 7 days. | Run `nlm login` to refresh. API calls will fail. |
+| `unverified` | Live check could not complete (network timeout, DNS failure, proxy block). Credentials on disk are intact and may still work. | Retry later or check your network. Do **not** assume re-auth is needed — operations often still succeed. |
+| `error` | Unexpected exception inside the health checker itself (very rare). | File a bug with the traceback. |
+
+<Note>
+  The `server_info` result is cached for 30 seconds. If you run `nlm login` externally, the updated status is reflected on the next call without waiting for the cache to expire. `nlm login --check` always performs a live check.
+</Note>
+
+## Enterprise and Google Workspace
+
+If your organization uses a managed NotebookLM instance (e.g., `notebooklm.cloud.google.com`), set the `NOTEBOOKLM_BASE_URL` environment variable before authenticating:
+
+```bash
+export NOTEBOOKLM_BASE_URL=https://notebooklm.cloud.google.com
+nlm login
+```
+
+All CLI commands and MCP tool calls will use this URL automatically. Add the export to your shell profile (`~/.zshrc` or `~/.bashrc`) to make it persist across sessions.
+
+For MCP server configuration, pass the variable in your client config:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm-mcp": {
+      "command": "notebooklm-mcp",
+      "env": {
+        "NOTEBOOKLM_BASE_URL": "https://notebooklm.cloud.google.com"
+      }
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+<Warning>
+  **The `NOTEBOOKLM_COOKIES` environment variable trap**
+
+  If you set `NOTEBOOKLM_COOKIES` in your MCP client config (e.g., `claude_desktop_config.json`), it takes **absolute priority** over all other auth sources — `auth.json`, profile cookies, and `nlm login`. When those hardcoded cookies expire, no recovery action (including `refresh_auth` or running `nlm login`) can fix the running MCP process because the stale value is baked into its environment.
+
+  To check whether it is set:
+
+  ```python
+  import os
+  print(os.environ.get("NOTEBOOKLM_COOKIES", "not set"))
+  ```
+
+  **Fix:** Either update the cookie value in your config file and restart your AI tool, or remove `NOTEBOOKLM_COOKIES` entirely and use `nlm login` instead (recommended — auto-refresh then works normally).
+
+  The same applies to `NOTEBOOKLM_CSRF_TOKEN` and `NOTEBOOKLM_SESSION_ID` — both are deprecated and auto-extracted. Remove them from any config to allow auto-refresh.
+</Warning>
+
+### "Browser is running but without remote debugging enabled"
+
+Close your browser completely before running `nlm login`. On Mac use **Cmd+Q** to fully quit; on Windows/Linux quit from the system tray or taskbar.
+
+### Auto Mode fails to connect
+
+Switch to File Mode:
+
+```bash
+nlm login --manual
+```
+
+### "401 Unauthorized" or "403 Forbidden" errors
+
+Your cookies have expired. Refresh them:
+
+```bash
+nlm login
+```
+
+### Browser opens with strange branding (e.g., Antigravity IDE)
+
+A browser extension or tool is modifying the browser environment. Try a different browser:
+
+```bash
+nlm config set auth.browser chrome
+nlm login
+```
+
+Or switch to File Mode: `nlm login --manual`.
+
+### Cookie file shows "missing required cookies"
+
+You copied the full header line instead of just the value. The value should begin with `SID=...`, not `cookie: SID=...`.
+
+### Run the full diagnostic
+
+The `nlm doctor` command checks storage, authentication, browser detection, and MCP wiring in one pass:
+
+```bash
+nlm doctor
+```

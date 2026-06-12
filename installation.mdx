@@ -1,0 +1,223 @@
+---
+title: "Install NotebookLM CLI and MCP Server — Quick Start"
+sidebarTitle: "Installation"
+description: "Install notebooklm-mcp-cli with uv, pip, or pipx to get the nlm CLI and notebooklm-mcp server binaries. Requires Python 3.11 or higher."
+---
+
+`notebooklm-mcp-cli` is a single PyPI package that installs two binaries: the `nlm` command-line interface and the `notebooklm-mcp` MCP server. You only need to install one package to get both entry points. The package requires **Python 3.11 or higher** and works on macOS, Linux, and Windows (including WSL2).
+
+<Steps>
+
+### Install the package
+
+Choose your preferred installation method. `uv` is recommended for isolated, reproducible installs that won't interfere with your system Python.
+
+<CodeGroup>
+
+```bash uv (Recommended)
+uv tool install notebooklm-mcp-cli
+```
+
+```bash uvx (No Install)
+# Run CLI commands without a persistent install
+uvx --from notebooklm-mcp-cli nlm --help
+
+# Run the MCP server without a persistent install
+uvx --from notebooklm-mcp-cli notebooklm-mcp
+```
+
+```bash pip
+pip install notebooklm-mcp-cli
+```
+
+```bash pipx
+pipx install notebooklm-mcp-cli
+```
+
+```bash Source
+git clone https://github.com/jacob-bd/notebooklm-mcp-cli.git
+cd notebooklm-mcp-cli
+
+uv tool install .
+```
+
+</CodeGroup>
+
+### Verify the install
+
+After installation you should have two new commands available in your `PATH`:
+
+```bash
+nlm --help            # CLI entry point
+notebooklm-mcp --help # MCP server entry point
+```
+
+Confirm the installed version with:
+
+```bash
+uv tool list | grep notebooklm
+# notebooklm-mcp-cli v0.7.3
+#   - nlm
+#   - notebooklm-mcp
+```
+
+### Authenticate
+
+Before using either tool, authenticate with NotebookLM:
+
+```bash
+nlm login
+```
+
+See the [Authentication](/authentication) guide for Auto Mode, File Mode, and multi-profile setup.
+
+### Connect an AI agent (optional)
+
+If you want to use the MCP server with an AI assistant, run the appropriate setup command:
+
+```bash
+nlm setup add claude-code
+nlm setup add cursor
+nlm setup add gemini
+nlm setup add github-copilot
+
+# Generate a JSON config snippet for any other MCP client
+nlm setup add json
+```
+
+</Steps>
+
+## Upgrading
+
+<CodeGroup>
+
+```bash uv
+uv tool upgrade notebooklm-mcp-cli
+```
+
+```bash pip
+pip install --upgrade notebooklm-mcp-cli
+```
+
+```bash pipx
+pipx upgrade notebooklm-mcp-cli
+```
+
+</CodeGroup>
+
+<Note>
+  If `uv tool upgrade` installs an older version than expected, use a force-reinstall instead. The `upgrade` command respects version constraints from your original install; `--force` bypasses them and fetches the absolute latest from PyPI:
+
+  ```bash
+  uv tool install --force notebooklm-mcp-cli
+  ```
+</Note>
+
+After upgrading, restart your AI tool to reconnect to the updated MCP server:
+
+- **Claude Code:** Restart the app, or run `/mcp` to reconnect.
+- **Cursor / Windsurf:** Restart the application.
+- **Gemini CLI:** Restart the CLI session.
+
+## Migrating from Legacy Packages
+
+Earlier releases shipped as two separate packages — `notebooklm-cli` (CLI only) and `notebooklm-mcp-server` (MCP only). These have been consolidated into the single `notebooklm-mcp-cli` package. If you have either legacy package installed, follow these steps to migrate.
+
+<Steps>
+
+### Check what you have installed
+
+```bash
+uv tool list | grep notebooklm
+```
+
+If you see `notebooklm-cli` or `notebooklm-mcp-server` in the output, you are on the legacy packages.
+
+| Legacy package | What it was |
+|---|---|
+| `notebooklm-cli` | Old CLI-only package |
+| `notebooklm-mcp-server` | Old MCP-only package |
+
+### Uninstall the legacy packages
+
+```bash
+# Remove old CLI package (if installed)
+uv tool uninstall notebooklm-cli
+
+# Remove old MCP package (if installed)
+uv tool uninstall notebooklm-mcp-server
+```
+
+### Reinstall the unified package
+
+Use `--force` to ensure clean symlinks after the uninstall:
+
+```bash
+uv tool install --force notebooklm-mcp-cli
+```
+
+<Tip>
+  The `--force` flag is important here. When multiple packages provide the same executable, `uv` can leave broken symlinks behind after an uninstall. The flag ensures they are recreated correctly.
+</Tip>
+
+### Verify the result
+
+```bash
+uv tool list | grep notebooklm
+```
+
+You should now see only the unified package:
+
+```
+notebooklm-mcp-cli v0.7.3
+  - nlm
+  - notebooklm-mcp
+```
+
+### Re-authenticate if needed
+
+Your existing cookies should still work. If you encounter auth errors:
+
+```bash
+nlm login
+```
+
+<Info>
+  MCP server configuration in your AI tool (Claude Code, Cursor, etc.) does **not** need to change — the server binary name `notebooklm-mcp` is the same in both the legacy and unified packages.
+</Info>
+
+</Steps>
+
+## Uninstalling
+
+To fully remove the package and all associated data:
+
+<CodeGroup>
+
+```bash uv
+uv tool uninstall notebooklm-mcp-cli
+```
+
+```bash pip
+pip uninstall notebooklm-mcp-cli
+```
+
+```bash pipx
+pipx uninstall notebooklm-mcp-cli
+```
+
+</CodeGroup>
+
+To also remove cached authentication tokens and configuration:
+
+```bash
+rm -rf ~/.notebooklm-mcp-cli
+```
+
+If you registered the MCP server with any AI tools, remove those entries too:
+
+```bash
+nlm setup remove claude-code
+nlm setup remove cursor
+# Repeat for each configured tool
+```

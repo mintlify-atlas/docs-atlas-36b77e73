@@ -1,0 +1,285 @@
+---
+title: "End-to-End Workflows with the NotebookLM CLI"
+sidebarTitle: "Workflows"
+description: "Complete automation sequences for research, podcast generation, batch operations, and multi-format content pipelines using the nlm CLI and MCP server."
+---
+
+The `nlm` CLI is built for end-to-end automation — from discovering sources and ingesting content through to generating polished audio, reports, and flashcards. Every step that the web UI exposes can be scripted, scheduled, or wired into an AI agent via MCP. The workflows below show the exact command sequences for the most common tasks, along with scripting patterns for unattended runs.
+
+<Tip>
+  Set an alias for any notebook you use repeatedly — `nlm alias set research <notebook-id>` — so you can write `research` instead of a full UUID in every command.
+</Tip>
+
+## Workflow 1: Research → Podcast
+
+Discover sources with NotebookLM's built-in web research, import the best ones, and generate a deep-dive audio overview.
+
+<Steps>
+  <Step title="Start deep research">
+    ```bash
+    nlm research start "AI trends 2026" --notebook-id <id> --mode deep
+    ```
+    Deep mode searches broadly and takes roughly five minutes. The command prints a `task_id` you will need later.
+  </Step>
+
+  <Step title="Poll until research completes">
+    ```bash
+    nlm research status <notebook> --max-wait 300
+    ```
+    This polls every few seconds and exits once the research task finishes or the 300-second timeout is reached.
+  </Step>
+
+  <Step title="Import cited sources">
+    ```bash
+    nlm research import <notebook> <task-id> --cited-only
+    ```
+    `--cited-only` limits the import to sources that were actually referenced in the research summary, keeping your notebook focused.
+  </Step>
+
+  <Step title="Generate the audio podcast">
+    ```bash
+    nlm audio create <notebook> --format deep_dive --confirm
+    ```
+    Audio generation runs asynchronously on NotebookLM's servers. The `--confirm` flag is required to proceed without an interactive prompt.
+  </Step>
+
+  <Step title="Poll studio status">
+    ```bash
+    nlm studio status <notebook>
+    ```
+    Repeat until the status shows `completed`. Audio typically takes two to five minutes.
+  </Step>
+
+  <Step title="Download the finished podcast">
+    ```bash
+    nlm download audio <notebook> <artifact-id> --output podcast.mp3
+    ```
+    The `artifact-id` appears in the `nlm studio status` output.
+  </Step>
+</Steps>
+
+---
+
+## Workflow 2: Ingest Multiple Sources → Report
+
+Build a notebook from several URLs and a local file, then generate a Briefing Doc.
+
+<Steps>
+  <Step title="Create the notebook and set an alias">
+    ```bash
+    nlm notebook create "Competitive Analysis Q3"
+    nlm alias set analysis <notebook-id>
+    ```
+  </Step>
+
+  <Step title="Add URL sources and wait for readiness">
+    ```bash
+    nlm source add analysis --url "https://example.com/report-1" --wait
+    nlm source add analysis --url "https://example.com/report-2" --wait
+    ```
+    `--wait` blocks until the source is fully processed and ready for querying.
+  </Step>
+
+  <Step title="Add a local file source">
+    ```bash
+    nlm source add analysis --file ./internal-research.pdf --wait
+    ```
+  </Step>
+
+  <Step title="Generate a Briefing Doc">
+    ```bash
+    nlm report create analysis --format "Briefing Doc" --confirm
+    ```
+  </Step>
+
+  <Step title="Download the report">
+    ```bash
+    nlm studio status analysis
+    nlm download report analysis <artifact-id> --output briefing.md
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Workflow 3: Batch Podcast Generation
+
+Generate audio overviews across multiple notebooks in one pass.
+
+<Steps>
+  <Step title="Tag the notebooks you want to batch">
+    ```bash
+    nlm tag add <notebook-id-1> --tags "research"
+    nlm tag add <notebook-id-2> --tags "research"
+    nlm tag add <notebook-id-3> --tags "research"
+    ```
+  </Step>
+
+  <Step title="Trigger batch audio generation">
+    ```bash
+    nlm batch studio --type audio --tags "research" --confirm
+    ```
+    This queues audio generation for every notebook tagged `research`.
+  </Step>
+
+  <Step title="Poll each notebook for completion">
+    ```bash
+    nlm studio status <notebook-id-1>
+    nlm studio status <notebook-id-2>
+    nlm studio status <notebook-id-3>
+    ```
+    Or loop over tag results in a script — see the [Bash scripting example](#bash-automation-script) below.
+  </Step>
+</Steps>
+
+---
+
+## Workflow 4: Cross-Notebook Research Summary
+
+Query across multiple notebooks simultaneously to synthesize a unified answer.
+
+<Steps>
+  <Step title="Run a cross-notebook query">
+    ```bash
+    nlm cross query "What are the recurring themes around AI governance?" \
+      --notebooks "id1,id2,id3"
+    ```
+    You can also use tags to select notebooks dynamically:
+    ```bash
+    nlm cross query "Summarize the key findings" --tags "research,2026"
+    ```
+  </Step>
+
+  <Step title="Export results to a file">
+    ```bash
+    nlm cross query "Compare approaches to RAG architectures" \
+      --tags "ai" --json > cross_results.json
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Workflow 5: Multi-Format Content Generation
+
+Generate audio, a report, and flashcards in one pipeline command.
+
+<Steps>
+  <Step title="Run the multi-format pipeline">
+    ```bash
+    nlm pipeline run <notebook> multi-format
+    ```
+    This built-in pipeline produces three artifacts in sequence:
+    - **Audio** — a `deep_dive` podcast overview
+    - **Report** — a Briefing Doc
+    - **Flashcards** — medium-difficulty study cards
+  </Step>
+
+  <Step title="Check all generated artifacts">
+    ```bash
+    nlm studio status <notebook>
+    ```
+  </Step>
+
+  <Step title="Download each artifact">
+    ```bash
+    nlm download audio     <notebook> <audio-id>     --output overview.mp3
+    nlm download report    <notebook> <report-id>    --output briefing.md
+    nlm download flashcards <notebook> <cards-id>    --output cards.html --format html
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Bash Automation Script
+
+The following script automates the full Research → Podcast pipeline end-to-end. Save it, make it executable with `chmod +x`, and run it with a notebook ID as the first argument.
+
+<Note>
+  All generation commands require `--confirm` (or `-y`). Without this flag the CLI waits for an interactive prompt, which will cause the script to hang indefinitely.
+</Note>
+
+```bash
+#!/bin/bash
+# research_podcast.sh — Automate Research → Podcast workflow
+# Usage: ./research_podcast.sh <notebook-id> "research query"
+
+set -euo pipefail
+
+NOTEBOOK_ID="${1:?Usage: $0 <notebook-id> <query>}"
+QUERY="${2:?Usage: $0 <notebook-id> <query>}"
+
+echo "→ Checking authentication..."
+nlm login --check || nlm login
+
+echo "→ Starting deep research: '$QUERY'"
+nlm research start "$QUERY" --notebook-id "$NOTEBOOK_ID" --mode deep
+
+echo "→ Waiting for research to complete (up to 5 minutes)..."
+nlm research status "$NOTEBOOK_ID" --max-wait 300
+
+echo "→ Importing cited sources..."
+TASK_ID=$(nlm research status "$NOTEBOOK_ID" --max-wait 0 --json 2>/dev/null \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('task_id',''))")
+
+if [ -n "$TASK_ID" ]; then
+  nlm research import "$NOTEBOOK_ID" "$TASK_ID" --cited-only
+else
+  echo "Warning: could not determine task ID; skipping import"
+fi
+
+echo "→ Generating deep-dive podcast..."
+nlm audio create "$NOTEBOOK_ID" --format deep_dive --confirm
+
+echo "→ Polling for audio completion..."
+for i in $(seq 1 30); do
+  STATUS=$(nlm studio status "$NOTEBOOK_ID" --json 2>/dev/null \
+    | python3 -c "import sys,json; arts=json.load(sys.stdin); \
+      audio=[a for a in arts if a.get('type')=='audio']; \
+      print(audio[-1].get('status','') if audio else '')")
+  echo "  Status: $STATUS (attempt $i/30)"
+  [ "$STATUS" = "completed" ] && break
+  sleep 15
+done
+
+echo "✓ Done. Run 'nlm studio status $NOTEBOOK_ID' to get the artifact ID for download."
+```
+
+---
+
+## Python Scripting: Parsing `--json` Output
+
+Use `--json` to get machine-readable output from any command. Always parse it with a proper JSON library rather than splitting strings.
+
+```python
+import json
+import subprocess
+
+def list_notebooks() -> list[dict]:
+    result = subprocess.run(
+        ["nlm", "notebook", "list", "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)
+
+def get_studio_artifacts(notebook_id: str) -> list[dict]:
+    result = subprocess.run(
+        ["nlm", "studio", "status", notebook_id, "--json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)
+
+# Example: find the latest completed audio artifact
+notebooks = list_notebooks()
+for nb in notebooks:
+    artifacts = get_studio_artifacts(nb["id"])
+    audio = [a for a in artifacts if a.get("type") == "audio" and a.get("status") == "completed"]
+    if audio:
+        print(f"Notebook: {nb['title']}")
+        print(f"  Audio artifact ID: {audio[-1]['id']}")
+```

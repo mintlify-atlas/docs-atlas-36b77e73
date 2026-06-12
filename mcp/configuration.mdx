@@ -1,0 +1,260 @@
+---
+title: "NotebookLM MCP Server: Configuration Reference"
+sidebarTitle: "Configuration"
+description: "Configure the NotebookLM MCP server: transport options, environment variables, HTTP mode, remote setup, and per-tool JSON configs."
+---
+
+The `notebooklm-mcp` binary is the MCP server process that your AI tool launches (or connects to) when you use NotebookLM tools. Most users run it with the default `stdio` transport and zero extra configuration — the `nlm setup add <tool>` command handles everything automatically. This page covers the full set of options for users who need HTTP transport, remote deployment, enterprise URL overrides, or manual JSON configurations.
+
+## Server Options
+
+The following flags can be passed to the `notebooklm-mcp` binary directly. Each flag also has a corresponding environment variable (see the next section).
+
+| Flag | Description | Default |
+|---|---|---|
+| `--transport` | Transport protocol: `stdio`, `http`, or `sse` | `stdio` |
+| `--host` | Host to bind for HTTP/SSE transport | `127.0.0.1` |
+| `--port` | Port for HTTP/SSE transport | `8000` |
+| `--path` | MCP endpoint path for HTTP transport | `/mcp` |
+| `--stateless` | Stateless HTTP sessions (avoids MCP SDK double-response bug) | `true` |
+| `--debug` | Enable verbose debug logging | `false` |
+| `--query-timeout` | Query timeout in seconds | `120.0` |
+
+```bash
+# Default stdio transport (most AI tools)
+notebooklm-mcp
+
+# HTTP on default port
+notebooklm-mcp --transport http
+
+# HTTP on a custom port with debug logging
+notebooklm-mcp --transport http --port 3000 --debug
+
+# Legacy SSE transport (backwards compatibility)
+notebooklm-mcp --transport sse --port 8080
+```
+
+<Warning>
+  Binding to a non-loopback address (anything other than `127.0.0.1`, `localhost`, or `::1`) is blocked by default because the HTTP transport has **no built-in authentication** — anyone who can reach the port gets access to your Google cookies. To override, set `NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1` and ensure the port is behind a trusted network or auth proxy.
+</Warning>
+
+## Environment Variables
+
+All server options can be set via environment variables. These are read at startup and can be placed in your shell profile, a `.env` file, or inside the AI tool's MCP server config block.
+
+| Variable | Description | Default |
+|---|---|---|
+| `NOTEBOOKLM_MCP_TRANSPORT` | Transport type: `stdio`, `http`, or `sse` | `stdio` |
+| `NOTEBOOKLM_MCP_HOST` | Host to bind for HTTP/SSE | `127.0.0.1` |
+| `NOTEBOOKLM_MCP_PORT` | Port for HTTP/SSE | `8000` |
+| `NOTEBOOKLM_MCP_PATH` | MCP endpoint path for HTTP | `/mcp` |
+| `NOTEBOOKLM_MCP_STATELESS` | Stateless HTTP sessions (`true`/`false`) | `true` |
+| `NOTEBOOKLM_MCP_DEBUG` | Enable debug logging (`true`/`false`) | `false` |
+| `NOTEBOOKLM_HL` | Interface language and default artifact language (BCP-47 code, e.g. `en`, `fr`, `ja`) | `en` |
+| `NOTEBOOKLM_QUERY_TIMEOUT` | Query timeout in seconds | `120.0` |
+| `NOTEBOOKLM_BASE_URL` | Override the NotebookLM base URL for enterprise or workspace deployments | `https://notebooklm.google.com` |
+| `NOTEBOOKLM_BL` | Build label override. Usually auto-extracted from the NotebookLM page — only set this if auto-extraction fails. | _(auto)_ |
+| `NOTEBOOKLM_ALLOW_EXTERNAL_BIND` | Allow binding HTTP/SSE to non-loopback addresses. Set to `1` to enable (security risk). | _(unset)_ |
+
+<Info>
+  Setting `NOTEBOOKLM_HL` changes both the NotebookLM UI language and the default language used for studio artifacts (audio, video, reports, etc.). You can override the language per-artifact with the `language` parameter on `studio_create`.
+</Info>
+
+## HTTP Transport
+
+Use HTTP transport when you need to connect to the server over a network connection — for example, from a remote machine, a container, or a tool that only supports HTTP-based MCP.
+
+```json
+{
+  "mcpServers": {
+    "notebooklm-mcp": {
+      "command": "notebooklm-mcp",
+      "args": ["--transport", "http", "--port", "8000"]
+    }
+  }
+}
+```
+
+Or set via environment variable in your config:
+
+```json
+{
+  "mcpServers": {
+    "notebooklm-mcp": {
+      "command": "notebooklm-mcp",
+      "env": {
+        "NOTEBOOKLM_MCP_TRANSPORT": "http",
+        "NOTEBOOKLM_MCP_PORT": "8000"
+      }
+    }
+  }
+}
+```
+
+### Health Endpoint
+
+When running with HTTP or SSE transport, the server exposes a health check endpoint at `/health`:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+```json
+{
+  "status": "healthy",
+  "service": "notebooklm-mcp",
+  "version": "0.2.0"
+}
+```
+
+This is useful for load balancers, monitoring systems, and container health probes.
+
+## Multi-User / Remote Setup
+
+To run the MCP server on a remote machine and connect to it from your local AI tool:
+
+1. **On the remote machine**, start the server bound to all interfaces with HTTP transport:
+
+   ```bash
+   NOTEBOOKLM_ALLOW_EXTERNAL_BIND=1 notebooklm-mcp --transport http --host 0.0.0.0 --port 8000
+   ```
+
+   Place this behind an SSH tunnel, VPN, or reverse proxy with authentication — the server itself has no auth layer.
+
+2. **On the local machine**, configure your AI tool to connect to the remote URL. Consult your AI tool's documentation for its remote MCP connection format.
+
+3. Use `GET /health` to verify the server is reachable before connecting your AI tool.
+
+<Warning>
+  Never expose the MCP server port directly to the public internet. Your Google authentication cookies are transmitted with every request — treat the port as you would an SSH key.
+</Warning>
+
+## Manual JSON Configs
+
+If you prefer to configure your AI tool by editing JSON files directly (instead of using `nlm setup add`), use the configurations below. Run `which notebooklm-mcp` to find the full binary path if needed.
+
+<Tabs>
+  <Tab title="Claude Code">
+    Register via the Claude CLI (recommended):
+
+    ```bash
+    claude mcp add --scope user notebooklm-mcp notebooklm-mcp
+    ```
+
+    Or add manually to your Claude Code MCP settings:
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "notebooklm-mcp",
+          "args": []
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Claude Desktop">
+    Claude Desktop may not resolve `PATH` automatically. Use the **full path** to the binary.
+
+    **Config file:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "/full/path/to/notebooklm-mcp"
+        }
+      }
+    }
+    ```
+
+    Find the full path with:
+
+    ```bash
+    which notebooklm-mcp
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    **Config file:** `~/.cursor/mcp.json`
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "notebooklm-mcp"
+        }
+      }
+    }
+    ```
+
+    Cursor resolves commands from `PATH`, so the binary name alone is sufficient.
+  </Tab>
+  <Tab title="Windsurf">
+    **Config file:** `~/.codeium/windsurf/mcp_config.json`
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "notebooklm-mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="GitHub Copilot">
+    GitHub Copilot uses a workspace-scoped config with a top-level `servers` key (not `mcpServers`).
+
+    **Config file:** `.vscode/mcp.json` (in your workspace root)
+
+    ```json
+    {
+      "servers": {
+        "notebooklm-mcp": {
+          "command": "notebooklm-mcp",
+          "args": []
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Gemini CLI">
+    Register via the Gemini CLI (recommended):
+
+    ```bash
+    gemini mcp add --scope user notebooklm-mcp notebooklm-mcp
+    ```
+  </Tab>
+  <Tab title="uvx (no install)">
+    Run the server directly with `uvx` — no prior installation required. Works with any tool that accepts a JSON config.
+
+    ```json
+    {
+      "mcpServers": {
+        "notebooklm-mcp": {
+          "command": "uvx",
+          "args": ["--from", "notebooklm-mcp-cli", "notebooklm-mcp"]
+        }
+      }
+    }
+    ```
+
+    `uvx` downloads the package on first run and caches it. This is useful for quickly testing the MCP or for environments where you cannot install packages globally.
+  </Tab>
+</Tabs>
+
+## Context Window Management
+
+The MCP server exposes **35 tools**. Each tool registration consumes a small but non-trivial amount of your AI assistant's context budget, and this cost is paid on every request whether or not you use NotebookLM in that session.
+
+**Best practices:**
+
+- **Disable when not in use.** In Claude Code, type `@notebooklm-mcp` in the chat to toggle the server on or off without restarting.
+- **Use unified tools.** `source_add`, `studio_create`, and `download_artifact` each handle multiple operations. Prefer these over chaining multiple single-purpose calls — you save both context and round-trips.
+- **Poll wisely.** Studio artifacts take 1–5 minutes to generate. Don't call `studio_status` in a tight loop; a 15–30 second poll interval is sufficient.
+- **Scope your queries.** Pass `source_ids` to `notebook_query` to limit the AI's grounding context to only the sources that are relevant to your question.
+
+<Tip>
+  If you use multiple AI tools simultaneously, you only need the MCP server registered in one of them at a time. Use `nlm setup list` to see which tools are currently configured and `nlm setup remove <tool>` to clean up unused registrations.
+</Tip>

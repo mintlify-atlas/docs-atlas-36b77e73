@@ -1,0 +1,78 @@
+---
+title: "NotebookLM CLI & MCP Server: Full Programmatic Access"
+sidebarTitle: "Introduction"
+description: "Automate Google NotebookLM from your terminal or AI agent using the nlm CLI and notebooklm-mcp MCP server — no official API required."
+---
+
+`notebooklm-mcp-cli` gives you full programmatic control over Google NotebookLM through two entry points: the `nlm` command-line interface for scripting and terminal workflows, and the `notebooklm-mcp` Model Context Protocol server that wires NotebookLM directly into AI assistants like Claude, Cursor, Gemini CLI, and GitHub Copilot. A single PyPI package installs both binaries, so you get the same underlying capabilities whether you are automating a pipeline in Bash or asking an AI agent to build a research notebook in natural language.
+
+## Two Ways to Use
+
+The package ships two entry points that share the same feature set.
+
+**`nlm` — Command-Line Interface**
+Run `nlm` in any terminal for interactive use, shell scripts, or CI pipelines. Every feature available to the MCP server is also available as a CLI command.
+
+```bash
+nlm notebook list
+nlm notebook create "Research Project"
+nlm source add <notebook> --url "https://example.com/article"
+nlm audio create <notebook> --confirm
+nlm download audio <notebook> <artifact-id>
+nlm share public <notebook>
+```
+
+**`notebooklm-mcp` — MCP Server for AI Agents**
+Connect any MCP-compatible AI assistant to NotebookLM with a single setup command. Once connected, you interact through natural language — the agent translates your instructions into the 35 available MCP tools.
+
+```bash
+nlm setup add claude-code
+nlm setup add cursor
+nlm setup add gemini
+nlm setup add github-copilot
+```
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the package with uv, pip, or pipx. Python 3.11+ required.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Authenticate with NotebookLM using Auto Mode or manual cookie extraction.
+  </Card>
+</CardGroup>
+
+## What Is NotebookLM?
+
+NotebookLM is Google's AI-powered research assistant. You upload sources — URLs, PDFs, Google Docs, YouTube videos, text snippets — and NotebookLM indexes them so you can query across all of them, generate audio overviews (podcasts), produce video explainers, create briefing docs, build slide decks, and more. Until now, all of that required the NotebookLM web UI.
+
+`notebooklm-mcp-cli` adds a programmatic layer on top. You can create notebooks, add sources, run queries, and trigger content generation entirely from your terminal or from an AI agent — and every query you send from the CLI or MCP automatically appears in your NotebookLM web UI chat history, so the two interfaces stay in sync.
+
+## Feature Overview
+
+| Capability | CLI Command | MCP Tool |
+|---|---|---|
+| List notebooks | `nlm notebook list` | `notebook_list` |
+| Create notebook | `nlm notebook create` | `notebook_create` |
+| Add sources (URL, Text, Drive, File) | `nlm source add` | `source_add` |
+| Query notebook | `nlm notebook query` | `notebook_query` |
+| Create Studio content (Audio, Video, etc.) | `nlm studio create` | `studio_create` |
+| Revise slide decks | `nlm slides revise` | `studio_revise` |
+| Download artifacts | `nlm download <type>` | `download_artifact` |
+| Web/Drive research | `nlm research start` | `research_start` |
+| Share notebook | `nlm share public/invite` | `notebook_share_*` |
+| Sync Drive sources | `nlm source sync` | `source_sync_drive` |
+| Batch operations | `nlm batch query/create/delete` | `batch` |
+| Cross-notebook query | `nlm cross query` | `cross_notebook_query` |
+| Pipelines (multi-step workflows) | `nlm pipeline run/list` | `pipeline` |
+| Tag & smart select | `nlm tag add/list/select` | `tag` |
+| Configure AI tools | `nlm setup add/remove/list` | — |
+| Install AI Skills | `nlm skill install/update` | — |
+| Diagnose issues | `nlm doctor` | — |
+
+## Important Disclaimer
+
+<Warning>
+  This project uses **internal, undocumented Google APIs** that may change without notice. It has been tested on free, Pro, and Google AI Ultra ($249/mo) tier accounts. NotebookLM Enterprise accounts may work but have not been formally tested. Use for personal and experimental purposes at your own risk.
+</Warning>
+
+Authentication is cookie-based — the tool extracts credentials directly from your browser session using the Chrome DevTools Protocol (CDP). There is no official Google API behind this integration.
